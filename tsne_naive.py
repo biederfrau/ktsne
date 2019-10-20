@@ -78,19 +78,13 @@ class NaiveTSNE():
         self.perplexity = perplexity
         self.d = d
         self.eta = eta
-        self.k = k
         self.momentum = momentum
         self.errors = np.zeros(n_epochs)
-        self.k_ratio = k_ratio
         self.stop_sampling = stop_sampling or n_epochs
         self.save_embeddings = save_embeddings
 
     def _fit(self, X):
         n, m = X.shape
-
-        if self.k_ratio is not None:
-            if self.k is not None: print("k overridden by k_ratio")
-            self.k = int(n*self.k_ratio)
 
         sigma = np.full(n, np.nan)
         P_j_given_i = np.zeros((n, n))
@@ -117,26 +111,16 @@ class NaiveTSNE():
         # run gradient descent
         for t in range(self.n_iter):
             dist_sq_Y = compute_distance_matrix(Y)
-            Z = (1 + dist_sq_Y)**-1
-            np.fill_diagonal(Z, 0)
+            qijZ = (1 + dist_sq_Y)**-1
+            np.fill_diagonal(qijZ, 0)
 
-            Q_ij = Z / np.sum(Z) # low dimensional affinities
+            Q_ij = qijZ / np.sum(qijZ) # low dimensional affinities
             Q_ij = np.maximum(Q_ij, 1e-12)
-
-            if self.k is not None and t < self.stop_sampling:
-                print(f"*** SAMPLING k = {self.k} ***")
 
             M = 12 if t < 50 else 1 # early exaggeration
             for i in range(n):
-                F_attr = np.tile(M*P_ij[:, i]*Z[:, i], (self.d, 1)).T * (Y[i, :] - Y)
-                F_rep = np.tile(Q_ij[:, i]*Z[:, i], (self.d, 1)).T * (Y[i, :] - Y)
-
-                if self.k is not None and t < self.stop_sampling:
-                    choice = np.arange(n)
-                    np.random.shuffle(choice)
-                    choice = choice[:max(n - self.k, 0)]
-
-                    F_rep[choice, :] = 0
+                F_attr = np.tile(M*P_ij[:, i]*qijZ[:, i], (self.d, 1)).T * (Y[i, :] - Y)
+                F_rep = np.tile(Q_ij[:, i]*qijZ[:, i], (self.d, 1)).T * (Y[i, :] - Y)
 
                 dY[i, :] = np.sum(F_attr - F_rep, 0)
 
@@ -173,7 +157,7 @@ from sklearn import datasets
 data = datasets.load_digits().data
 classes = datasets.load_digits().target
 
-tsne = NaiveTSNE(k_ratio=0.01, stop_sampling=175, save_embeddings=True)
+tsne = NaiveTSNE()
 embedded = tsne.fit_transform(data)
 
 plot_embedding(embedded, classes)
