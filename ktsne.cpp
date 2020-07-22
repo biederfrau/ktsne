@@ -360,6 +360,7 @@ int main(int argc, char** argv) {
         for(size_t i = 0; i < n; ++i) {
             for(size_t j = 0; j < d; ++j) {
                 gains(i, j) = std::signbit(iY(i, j)) == std::signbit(dY(i, j)) ? gains(i, j)*0.8 : gains(i, j)+0.2;
+                gains(i, j) = std::max(gains(i, j), 0.1);
             }
         }
 
@@ -368,7 +369,18 @@ int main(int argc, char** argv) {
 
         // compute objective - optional
         if(compute_objective) {
-            // TODO
+            double kl = 0;
+
+            for(int k = 0; k < P_ij.outerSize(); ++k) {
+                for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
+                    int i = it.row(), j = it.col();
+                    double q_icell = std::sqrt(qiZ_cell_sq(i, point_assignments[j]) / Z_est);
+
+                    kl += P_ij(i, j)*std::log2(P_ij(i, j) / q_icell);
+                }
+            }
+
+            std::cerr << "[it = " << it << "] KL(P || Q)_est = " << kl << '\n';
         }
 
 
