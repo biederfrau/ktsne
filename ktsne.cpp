@@ -24,7 +24,7 @@ void print_vector(std::vector<double> const& v) {
 
 /* reads data from csv format. assumes that data consists of floating
  * point numbers only (as identified by strtof). works with header or
- * without. */
+ * without. probably really fragile, use with caution */
 std::vector<point_t> read_data(char* fname, char delim=',') {/*{{{*/
     std::ifstream fin{ fname };
     if(!fin) {
@@ -159,17 +159,55 @@ void initialize_gaussian(Eigen::MatrixXd& A, double sigma, RNG&& gen) {
     for(size_t i = 0; i < A.size(); ++i) { *(A.data() + i) = dist(gen); }
 }
 
+/* kmeans++ initialization strategy
+ *   (1) choose first centroid at random
+ *   (2) for each point x, calculate the distance to the nearest previously chosen
+ *       centroid D(x)
+ *   (3) select the next centroid such that the probability to choose some centroid
+ *       x is proportional to D(x)^2
+ *   (4) repeat steps 2 and 3 until k centroids have been selected */
+template <class RNG>
+Eigen::MatrixXd kmeanspp_initialize(Eigen::MatrixXd const& Y, size_t const k, RNG&& gen) {
+    std::unordered_set<size_t> centroid_idxs;
+    std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
+    centroid_idxs.insert(dist(gen));
+
+    while(centroid_idxs.size() != k) {
+        std::vector<double> dist_sq; dist_sq.reserve(centroid_idxs.size());
+
+        for(size_t i = 0; i < Y.rows(); ++i) {
+            double smallest_dist_sq = INFINITY;
+            for(size_t centroid_idx: centroid_idxs) {
+                if(centroid_idx == i) { continue; }
+
+                double centroid_dist_sq = (Y.row(centroid_idx) - Y.row(i)).squaredNorm();
+                if(centroid_dist_sq < smallest_dist_sq) { smallest_dist_sq = centroid_dist_sq; }
+            }
+
+            assert(smallest_dist_sq != INFINITY);
+            dist_sq.push_back(smallest_dist_sq);
+        }
+
+        std::discrete_distribution<size_t> centroid_dist{ dist_sq.begin(), dist_sq.end() };
+        centroid_idxs.insert(centroid_dist(gen));
+    }
+
+    Eigen::MatrixXd centroids{ k, Y.cols() };
+    auto it = centroid_idxs.begin();
+    for(auto i = 0; i < k; ++i, ++it) { centroids.row(i) = Y.row(*it); }
+
+    return centroids;
+}
+
 template <class RNG>
 std::tuple<Eigen::MatrixXd, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXd const& Y, size_t const k, size_t const max_iter, RNG&& gen) {
     std::unordered_set<size_t> centroid_idxs;
     std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
     while(centroid_idxs.size() != k) { centroid_idxs.insert(dist(gen)); }
 
-    Eigen::MatrixXd centroids{ k, Y.cols() };
-    auto it = centroid_idxs.begin();
-    for(auto i = 0; i < k; ++i, ++it) { centroids.row(i) = Y.row(*it); }
+    Eigen::MatrixXd centroids = kmeanspp_initialize(Y, k, gen);
 
-    std::unordered_multimap<size_t, int> cluster_assignments; // centroid idx -> point idx
+    std::unordered_multimap<size_t, int> cluster_assignments; // map: centroid idx -> {point idxs}
     for(size_t it = 0; it < max_iter; ++it) {
         cluster_assignments.clear();
 
@@ -177,6 +215,10 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eige
         for(int i = 0; i < Y.rows(); ++i) {
             std::vector<double> sq_dist; sq_dist.resize(k);
             for(size_t n = 0; n < k; ++n) { sq_dist[n] = (centroids.row(n) - Y.row(i)).squaredNorm(); }
+
+            std::cerr << "sq_dist [point " << i << ", iter " << it << "] = ";
+            for(auto v: sq_dist) { std::cerr << v << ' '; }
+            std::cerr << '\n';
 
             size_t nearest_centroid_idx = std::min_element(sq_dist.begin(), sq_dist.end()) - sq_dist.begin();
             cluster_assignments.insert(std::make_pair(nearest_centroid_idx, i));
@@ -191,6 +233,8 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eige
 
             centroids.row(n) = new_centroid;
         }
+
+        assert(!centroids.hasNaN());
     }
 
     Eigen::VectorXd num_assigned{ k };
@@ -250,7 +294,7 @@ int main(int argc, char** argv) {
     bool compute_objective = false;
 
     char c;
-    while((c = getopt(argc, argv, "p:l:b:t:i:vh")) != -1) {
+    while((c = getopt(argc, argv, "p:l:b:t:i:vho")) != -1) {
         switch(c) {
             case 'p':
                 p = std::atoll(optarg);
@@ -312,6 +356,8 @@ int main(int argc, char** argv) {
     size_t const d = 2;
 
     if(b == -1) { b = std::max(16ul, static_cast<size_t>(std::log2(n))); }
+
+    if(verbose) { std::cerr << "[verbose] computing high_dimensional_affinities\n"; }
     Eigen::SparseMatrix<double> P_j_given_i = high_dimensional_affinities(data, p, l, b, t);
 
     Eigen::SparseMatrix<double> P_ij = Eigen::SparseMatrix<double>(P_j_given_i.transpose()) + P_j_given_i;
@@ -324,6 +370,7 @@ int main(int argc, char** argv) {
     Eigen::MatrixXd dY(n, d);
     Eigen::MatrixXd gains = Eigen::MatrixXd::Ones(n, d);
 
+    if(verbose) { std::cerr << "[verbose] starting gradient descent\n"; }
     for(size_t it = 0; it < max_iter; ++it) {
         Eigen::MatrixXd F_attr(n, d);
 
@@ -345,6 +392,8 @@ int main(int argc, char** argv) {
         Eigen::MatrixXd sq_dist_cell = compute_sq_dist(Y, centroids);
         Eigen::MatrixXd q_icellZ_sq = (1/(sq_dist_cell.array() + 1).square()).matrix() * n_cell.asDiagonal();
 
+        if(sq_dist_cell.hasNaN()) { std::abort(); }
+
         double Z_est = ((1/(sq_dist_cell.array() + 1)).matrix() * n_cell.asDiagonal()).sum();
 
         Eigen::MatrixXd F_rep(n, d); // NOTE: actually estimating F_repZ!
@@ -364,25 +413,27 @@ int main(int argc, char** argv) {
             }
         }
 
-        iY = momentum(it)*iY - eta*(gains*dY);
+        iY = momentum(it)*iY - eta*(gains.cwiseProduct(dY));
         Y += iY;
 
-        // compute objective - optional
+        Eigen::RowVectorXd Y_mean = Y.colwise().mean();
+        Y = Y.rowwise() - Y_mean;
+
         if(compute_objective) {
             double kl = 0;
 
             for(int k = 0; k < P_ij.outerSize(); ++k) {
                 for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
                     int i = it.row(), j = it.col();
-                    double q_icell = std::sqrt(qiZ_cell_sq(i, point_assignments[j]) / Z_est);
+                    double q_icell = std::sqrt(q_icellZ_sq(i, point_assignments[j]) / Z_est);
 
-                    kl += P_ij(i, j)*std::log2(P_ij(i, j) / q_icell);
+                    kl += it.value()*std::log2(it.value() / q_icell);
                 }
             }
 
             std::cerr << "[it = " << it << "] KL(P || Q)_est = " << kl << '\n';
         }
-
-
     }
+
+    std::cout << Y << '\n';
 }
