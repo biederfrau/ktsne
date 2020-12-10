@@ -1,5 +1,6 @@
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <limits>
@@ -15,6 +16,11 @@
 #include <falconn/lsh_nn_table.h>
 
 using point_t = falconn::DenseVector<double>;
+namespace fs = std::filesystem;
+
+namespace Eigen {
+    using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
+}
 
 void print_vector(std::vector<double> const& v) {
     std::cout << "[ ";
@@ -61,6 +67,22 @@ std::vector<point_t> read_data(char* fname, char delim=',') {/*{{{*/
     return data;
 }/*}}}*/
 
+std::vector<int> read_labels(char* fname) {/*{{{*/
+    std::ifstream fin{ fname };
+    if(!fin) {
+        std::cerr << "invalid file name: " << fname << '\n';
+        std::exit(-1);
+    }
+
+    std::vector<int> labels;
+    int x;
+
+    while(fin >> x) { labels.push_back(x); }
+
+    std::cerr << "[read_labels] read " << labels.size() << " labels\n";
+    return labels;
+}/*}}}*/
+
 /* normalize all points to unit vector norm */
 void normalize(std::vector<point_t>& data) {/*{{{*/
     for(auto& p: data) { p.normalize(); }
@@ -76,7 +98,37 @@ point_t center(std::vector<point_t>& data) {/*{{{*/
     return center;
 }/*}}}*/
 
-double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp, double const tol=1e-5) {
+int mathematically_correct_sign(double x) {/*{{{*/
+    if(x < std::numeric_limits<double>::epsilon()) { return 0; }
+    return std::signbit(x) ? 1 : -1;
+}/*}}}*/
+
+Eigen::MatrixXdr compute_sq_dist_slow(Eigen::MatrixXdr const& X, Eigen::MatrixXdr const& Y) {/*{{{*/
+    Eigen::MatrixXdr sq_dist{ X.rows(), Y.rows() };
+
+    for(size_t i = 0; i < X.rows(); ++i) {
+        for(size_t j = 0; j < Y.rows(); ++j) {
+            sq_dist(i, j) = (X.row(i) - Y.row(j)).squaredNorm();
+        }
+    }
+
+    return sq_dist;
+}/*}}}*/
+
+// binomial form: (X - Y)^2 = -2*X@Y + X^2 + Y^2
+// this is faster due to optimized matrix multiplication and vectorization
+// possibilities
+Eigen::MatrixXdr compute_sq_dist_binomial(Eigen::MatrixXdr const& X, Eigen::MatrixXdr const& Y) {/*{{{*/
+    Eigen::MatrixXd D(X.rows(), Y.rows());
+    D = (
+            (X * Y.transpose() * -2).colwise()
+            + X.rowwise().squaredNorm()
+        ).rowwise()
+        + Y.rowwise().squaredNorm().transpose();
+    return D;
+}/*}}}*/
+
+double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp, double const tol=1e-5) {/*{{{*/
     double beta = 1.0, min_beta = std::numeric_limits<double>::lowest(), max_beta = std::numeric_limits<double>::max();
     std::vector<double> P; P.resize(dist_sq_one_point.size());
     double log_perp = std::log2(perp);
@@ -105,9 +157,9 @@ double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp
     }
 
     return beta;
-}
+}/*}}}*/
 
-Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t l, size_t b, size_t t) {
+Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t l, size_t b, size_t t) {/*{{{*/
     falconn::LSHConstructionParameters params = falconn::get_default_parameters<point_t>(
         data.size(),
         data[0].size(),
@@ -120,7 +172,7 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
 
     // find k nearest neighbors for every point. k is equal to 3*perp as per the paper
     for(size_t i = 0; i < data.size(); ++i) {
-        std::vector<int32_t> result; result.reserve(3*perp);
+        std::vector<int32_t> result; result.reserve(3*perp + 1);
         auto query = table->construct_query_object(/*num_probes*/ -1, /*max_num_candidates*/ -1);
 
         query->find_k_nearest_neighbors(data[i], 3*perp + 1, &result);
@@ -151,12 +203,17 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
     P_j_given_i.setFromTriplets(triplets.begin(), triplets.end());
 
     return P_j_given_i;
-}
+}/*}}}*/
 
 template <class RNG>
-void initialize_gaussian(Eigen::MatrixXd& A, double sigma, RNG&& gen) {
+void initialize_gaussian(Eigen::MatrixXdr& A, double sigma, RNG&& gen) {
     std::normal_distribution<double> dist{ 0, sigma };
     for(size_t i = 0; i < A.size(); ++i) { *(A.data() + i) = dist(gen); }
+}
+
+void initialize_PCA(Eigen::MatrixXdr& A, Eigen::MatrixXdr const& X) {
+    size_t dim = A.cols();
+    // TODO: reduce X to dim dimensions using PCA, use as initialization
 }
 
 /* kmeans++ initialization strategy
@@ -167,7 +224,7 @@ void initialize_gaussian(Eigen::MatrixXd& A, double sigma, RNG&& gen) {
  *       x is proportional to D(x)^2
  *   (4) repeat steps 2 and 3 until k centroids have been selected */
 template <class RNG>
-Eigen::MatrixXd kmeanspp_initialize(Eigen::MatrixXd const& Y, size_t const k, RNG&& gen) {
+Eigen::MatrixXdr kmeanspp_initialize(Eigen::MatrixXdr const& Y, size_t const k, RNG&& gen) {/*{{{*/
     std::unordered_set<size_t> centroid_idxs;
     std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
     centroid_idxs.insert(dist(gen));
@@ -177,9 +234,8 @@ Eigen::MatrixXd kmeanspp_initialize(Eigen::MatrixXd const& Y, size_t const k, RN
 
         for(size_t i = 0; i < Y.rows(); ++i) {
             double smallest_dist_sq = INFINITY;
-            for(size_t centroid_idx: centroid_idxs) {
-                if(centroid_idx == i) { continue; }
 
+            for(size_t centroid_idx: centroid_idxs) {
                 double centroid_dist_sq = (Y.row(centroid_idx) - Y.row(i)).squaredNorm();
                 if(centroid_dist_sq < smallest_dist_sq) { smallest_dist_sq = centroid_dist_sq; }
             }
@@ -192,45 +248,105 @@ Eigen::MatrixXd kmeanspp_initialize(Eigen::MatrixXd const& Y, size_t const k, RN
         centroid_idxs.insert(centroid_dist(gen));
     }
 
-    Eigen::MatrixXd centroids{ k, Y.cols() };
+    Eigen::MatrixXdr centroids{ k, Y.cols() };
     auto it = centroid_idxs.begin();
     for(auto i = 0; i < k; ++i, ++it) { centroids.row(i) = Y.row(*it); }
 
     return centroids;
-}
+}/*}}}*/
 
 template <class RNG>
-std::tuple<Eigen::MatrixXd, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXd const& Y, size_t const k, size_t const max_iter, RNG&& gen) {
+Eigen::MatrixXdr kmeans_initialize_random(Eigen::MatrixXdr const& Y, size_t const k, RNG&& gen) {/*{{{*/
+    std::unordered_set<size_t> centroid_idxs;
+    std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
+
+    while(centroid_idxs.size() != k) { centroid_idxs.insert(dist(gen)); }
+
+    Eigen::MatrixXdr centroids{ k, Y.cols() };
+    auto it = centroid_idxs.begin();
+    for(auto i = 0; i < k; ++i, ++it) { centroids.row(i) = Y.row(*it); }
+
+    return centroids;
+}/*}}}*/
+
+// std::unordered_multimap can erase() an entire key, an iterator to a value or
+// a range, but not a specific value. so here is a helper to find an value and
+// erase it.
+template <class K, class V>
+void multimap_remove_single_value(std::unordered_multimap<K, V>& m, K const& key, V const& value) {/*{{{*/
+    auto range = m.equal_range(key);
+    auto it = range.first;
+
+    for(/**/; it != range.second; ++it) {
+        if(std::equal_to<V>{}(value, it->second)) { break; }
+    }
+
+    assert(it != range.second);
+    m.erase(it);
+}/*}}}*/
+
+template <class RNG>
+std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXdr const& Y, size_t const k, size_t const max_iter, RNG&& gen) {/*{{{*/
     std::unordered_set<size_t> centroid_idxs;
     std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
     while(centroid_idxs.size() != k) { centroid_idxs.insert(dist(gen)); }
 
-    Eigen::MatrixXd centroids = kmeanspp_initialize(Y, k, gen);
+    Eigen::MatrixXdr centroids = kmeans_initialize_random(Y, k, gen);
+    // Eigen::MatrixXdr centroids = kmeanspp_initialize(Y, k, gen);
 
     std::unordered_multimap<size_t, int> cluster_assignments; // map: centroid idx -> {point idxs}
     for(size_t it = 0; it < max_iter; ++it) {
         cluster_assignments.clear();
 
         // assign
+        Eigen::MatrixXdr sq_dist = compute_sq_dist_binomial(Y, centroids);
         for(int i = 0; i < Y.rows(); ++i) {
-            std::vector<double> sq_dist; sq_dist.resize(k);
-            for(size_t n = 0; n < k; ++n) { sq_dist[n] = (centroids.row(n) - Y.row(i)).squaredNorm(); }
-
-            std::cerr << "sq_dist [point " << i << ", iter " << it << "] = ";
-            for(auto v: sq_dist) { std::cerr << v << ' '; }
-            std::cerr << '\n';
-
-            size_t nearest_centroid_idx = std::min_element(sq_dist.begin(), sq_dist.end()) - sq_dist.begin();
+            Eigen::MatrixXdr::Index nearest_centroid_idx = -1;
+            sq_dist.row(i).minCoeff(&nearest_centroid_idx);
             cluster_assignments.insert(std::make_pair(nearest_centroid_idx, i));
+        }
+
+        // for every cluster that is empty, find a replacement point which is
+        // farthest away from its assigned centroid. more than one cluster can
+        // be empty, so we make sure that a point is not chosen as a replacement
+        // more than once. this implies an ordering to the replacements
+        for(size_t n = 0; n < k; ++n) {
+            std::unordered_set<size_t> replacement_points;
+
+            if(cluster_assignments.count(n) == 0) {
+                double farthest_dist =  0;
+                size_t taken_from    = -1;
+                int farthest_idx     = -1;
+
+                for(size_t nn = 0; nn < k; ++nn) {
+                    if(n == nn || cluster_assignments.count(nn) < 2) { continue; }
+
+                    auto range = cluster_assignments.equal_range(nn);
+                    for(auto it = range.first; it != range.second; ++it) {
+                        double dist = (centroids.row(nn) - Y.row(it->second)).squaredNorm();
+
+                        if(dist > farthest_dist && !replacement_points.count(it->second)) {
+                            farthest_dist = dist;
+                            farthest_idx  = it->second;
+                            taken_from    = nn;
+                        }
+                    }
+                }
+
+                replacement_points.insert(farthest_idx);
+                multimap_remove_single_value(cluster_assignments, taken_from, farthest_idx);
+
+                cluster_assignments.insert(std::make_pair(n, farthest_idx));
+            }
         }
 
         // update
         for(size_t n = 0; n < k; ++n) {
-            Eigen::VectorXd new_centroid(Y.cols());
+            Eigen::VectorXd new_centroid = Eigen::VectorXd::Zero(Y.cols());
             auto range = cluster_assignments.equal_range(n);
             for(auto it = range.first; it != range.second; ++it) { new_centroid += Y.row(it->second); }
-            new_centroid /= cluster_assignments.count(n);
 
+            new_centroid /= cluster_assignments.count(n);
             centroids.row(n) = new_centroid;
         }
 
@@ -249,21 +365,46 @@ std::tuple<Eigen::MatrixXd, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eige
     }
 
     return std::make_tuple(centroids, num_assigned, point_assignments);
-}
-
-Eigen::MatrixXd compute_sq_dist(Eigen::MatrixXd const& X, Eigen::MatrixXd const& Y) {
-    Eigen::MatrixXd sq_dist{ X.rows(), Y.rows() };
-
-    for(size_t i = 0; i < X.rows(); ++i) {
-        for(size_t j = 0; j < Y.rows(); ++j) {
-            sq_dist(i, j) = (X.row(i) - Y.row(j)).squaredNorm();
-        }
-    }
-
-    return sq_dist;
-}
+}/*}}}*/
 
 double momentum(size_t iteration) { return iteration < 250 ? 0.5 : 0.8; }
+
+void load_matrix(Eigen::MatrixXdr& X, std::string const& fname) {/*{{{*/
+    std::ifstream fin{ fname };
+    if(!fin) {
+        std::cerr << "could not open " << fname << '\n';
+        std::abort();
+    }
+
+    double x;
+    for(size_t i = 0; i < X.rows(); ++i) {
+        for(size_t j = 0; j < X.cols(); ++j) {
+            if(!fin) { std::cerr << "fUCK\n"; }
+
+            fin >> x;
+            X(i, j) = x;
+        }
+    }
+}/*}}}*/
+
+void print_csv(std::string filename, Eigen::MatrixXdr const& Y, std::vector<int> labels={}) {/*{{{*/
+    std::ofstream fout{ filename };
+
+    if(!fout) {
+        std::cerr << "could not open outfile " << filename << "!\n";
+        std::abort();
+    }
+
+    fout << "x,y" << (labels.size() ? ",label" : "") << '\n';
+    for(size_t i = 0; i < Y.rows(); ++i) {
+        for(size_t j = 0; j < Y.cols(); ++j) {
+            fout << Y(i, j) << (j == Y.cols()-1 ? "" : ",");
+        }
+
+        if(labels.size()) { fout << "," << labels[i]; }
+        fout << '\n';
+    }
+}/*}}}*/
 
 #ifndef P
 #define P 5
@@ -281,73 +422,116 @@ double momentum(size_t iteration) { return iteration < 250 ? 0.5 : 0.8; }
 #define T 1
 #endif
 
+#ifndef A
+#define A 5
+#endif
+
+#ifndef Z
+#define Z 50
+#endif
+
 int main(int argc, char** argv) {
     size_t p = P;
     size_t l = L;
     size_t b = B;
-    size_t t = t;
+    size_t t = T;
+    size_t a = A;
+    size_t z = Z;
+    size_t s = 666;
     size_t max_iter = 250;
 
-    double eta = 200;
+    double eta = 20;
 
     bool verbose = false;
     bool compute_objective = false;
+    bool print_intermediate = false;
 
     char c;
-    while((c = getopt(argc, argv, "p:l:b:t:i:vho")) != -1) {
+    while((c = getopt(argc, argv, "p:l:b:t:i:n:a:z:s:vhog")) != -1) {
         switch(c) {
             case 'p':
                 p = std::atoll(optarg);
-                std::cout << "p = " << p << '\n';
+                std::cerr << "p = " << p << '\n';
+                break;
             case 'l':
                 l = std::atoll(optarg);
-                std::cout << "l = " << l << '\n';
+                std::cerr << "l = " << l << '\n';
                 break;
             case 'b':
                 b = std::atoll(optarg);
-                std::cout << "b = " << b << '\n';
+                std::cerr << "b = " << b << '\n';
                 break;
             case 't':
                 t = std::atoll(optarg);
-                std::cout << "t = " << t << '\n';
+                std::cerr << "t = " << t << '\n';
                 break;
             case 'i':
                 max_iter = std::atoll(optarg);
-                std::cout << "# of iterations = " << max_iter << '\n';
+                std::cerr << "# of iterations = " << max_iter << '\n';
                 break;
             case 'o':
                 compute_objective = true;
-                std::cout << "computing objective on\n";
+                std::cerr << "computing objective on\n";
                 break;
             case 'n':
                 eta = std::atof(optarg);
-                std::cout << "eta = " << eta << '\n';
+                std::cerr << "eta = " << eta << '\n';
                 break;
             case 'v':
                 verbose = true;
-                std::cout << "verbose mode on\n";
+                std::cerr << "verbose mode on\n";
+                break;
+            case 'a':
+                a = std::atoll(optarg);
+                std::cerr << "lower bound for kmeans k a = " << a << '\n';
+                break;
+            case 'z':
+                a = std::atoll(optarg);
+                std::cerr << "upper bound for kmeans k z = " << z << '\n';
+                break;
+            case 's':
+                s = std::atoll(optarg);
+                std::cerr << "seed = " << s << '\n';
+                break;
+            case 'g':
+                print_intermediate = true;
+                std::cerr << "printing intermediate embedding to file\n";
                 break;
             case 'h':
             default:
-                std::cout << "usage: " << argv[0] << " opts FILE\n"
+                std::cerr << "usage: " << argv[0] << " opts FILE\n"
                           << "where opt in opts is one of the following:\n\n"
 
                           << "  -p ... perplexity (effective number of neighbors per point). tunable parameter, default = " << P << '\n'
                           << "  -l ... number of hash tables for FALCONN lsh. tunable parameter, default = " << L << '\n'
                           << "  -b ... number of hash bits, controls number of buckets per table. automatically set to log2(n) if -1 is passed, default = " << B << '\n'
                           << "  -t ... number of probes for multi-probe LSH. tunable parameter (inverse relation to L), default = " << T << '\n'
+                          << "  -i ... number of gradient descent iterations\n"
                           << "  -o ... compute objective in every iteration, default = false\n"
                           << "  -n ... set eta, default = " << eta << '\n'
+                          << "  -a ... lower bound for k-means k, default = " << A << '\n'
+                          << "  -z ... upper bound for k-means k, default = " << Z << '\n'
                           << "  -v ... run in verbose mode\n"
+                          << "  -g ... print intermediate embedding every iteration (for creating GIFs)\n"
                           << "  -h ... this message\n\n"
 
-                          << "ktsne is an accelerated version of tsne which uses LSH and kmeans in its computation.\n";
+                          << "ktsne is an accelerated approximative version of tsne which uses LSH and kmeans in its computation.\n";
                 std::exit(-1);
         }
     }
 
-    std::mt19937 gen{ 666 };
+    std::mt19937 gen{ s };
     std::vector<point_t> data = read_data(argv[optind]);
+    std::vector<int> labels;
+
+    if(argc > optind + 1) {
+        labels = read_labels(argv[optind + 1]);
+
+        if(labels.size() != data.size()) {
+            std::cerr << "[ERR] label size mismatch. # of labels = " << labels.size() << ", # of data points = " << data.size() << "!\n";
+            std::abort();
+        }
+    }
 
     normalize(data);
     center(data);
@@ -363,22 +547,27 @@ int main(int argc, char** argv) {
     Eigen::SparseMatrix<double> P_ij = Eigen::SparseMatrix<double>(P_j_given_i.transpose()) + P_j_given_i;
     P_ij /= P_ij.sum();
 
-    Eigen::MatrixXd Y(n, d);
+    Eigen::MatrixXdr Y(n, d);
     initialize_gaussian(Y, 10e-4, gen);
 
-    Eigen::MatrixXd iY(n, d);
-    Eigen::MatrixXd dY(n, d);
-    Eigen::MatrixXd gains = Eigen::MatrixXd::Ones(n, d);
+    Eigen::MatrixXdr iY    = Eigen::MatrixXdr::Zero(n, d);
+    Eigen::MatrixXdr dY    = Eigen::MatrixXdr::Zero(n, d);
+    Eigen::MatrixXdr gains = Eigen::MatrixXdr::Ones(n, d);
+
+    std::uniform_int_distribution<size_t> k_dist{ a, z };
 
     if(verbose) { std::cerr << "[verbose] starting gradient descent\n"; }
+    if(compute_objective) { std::cout << "it,obj,norm\n"; }
+
     for(size_t it = 0; it < max_iter; ++it) {
-        Eigen::MatrixXd F_attr(n, d);
+        Eigen::MatrixXdr F_attr = Eigen::MatrixXdr::Zero(n, d);
 
         double early_exaggeration = it < 50 ? 12 : 1; // artificially inflate P_ij value for first few iterations
 
         for(int k = 0; k < P_ij.outerSize(); ++k) {
             for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
                 int i = it.row(), j = it.col();
+                assert(i != j);
 
                 auto diff = Y.row(i) - Y.row(j);
                 F_attr.row(i) += early_exaggeration*it.value() * (1/(1 + diff.squaredNorm())) * diff;
@@ -386,17 +575,17 @@ int main(int argc, char** argv) {
         }
 
         // approximate F_rep by assigning cells using kmeans
-        size_t k = 10;
-        auto [centroids, n_cell, point_assignments] = do_kmeans(Y, k, 100, gen);
+        size_t k = k_dist(gen);
+        auto [centroids, n_cell, point_assignments] = do_kmeans(Y, k, 10, gen);
+        assert((n_cell.array() > 0.0).all());
 
-        Eigen::MatrixXd sq_dist_cell = compute_sq_dist(Y, centroids);
-        Eigen::MatrixXd q_icellZ_sq = (1/(sq_dist_cell.array() + 1).square()).matrix() * n_cell.asDiagonal();
+        Eigen::MatrixXdr sq_dist_cell = compute_sq_dist_binomial(Y, centroids);
+        assert(!sq_dist_cell.hasNaN() && sq_dist_cell.allFinite());
 
-        if(sq_dist_cell.hasNaN()) { std::abort(); }
-
+        Eigen::MatrixXdr q_icellZ_sq = (1/(sq_dist_cell.array() + 1).square()).matrix() * n_cell.asDiagonal();
         double Z_est = ((1/(sq_dist_cell.array() + 1)).matrix() * n_cell.asDiagonal()).sum();
 
-        Eigen::MatrixXd F_rep(n, d); // NOTE: actually estimating F_repZ!
+        Eigen::MatrixXdr F_rep = Eigen::MatrixXdr::Zero(n, d); // NOTE: actually estimating F_repZ!
         for(size_t i = 0; i < n; ++i) {
             for(size_t j = 0; j < k; ++j) {
                 F_rep.row(i) += q_icellZ_sq(i, j) * (Y.row(i) - centroids.row(j));
@@ -408,8 +597,7 @@ int main(int argc, char** argv) {
 
         for(size_t i = 0; i < n; ++i) {
             for(size_t j = 0; j < d; ++j) {
-                gains(i, j) = std::signbit(iY(i, j)) == std::signbit(dY(i, j)) ? gains(i, j)*0.8 : gains(i, j)+0.2;
-                gains(i, j) = std::max(gains(i, j), 0.1);
+                gains(i, j) = std::max(mathematically_correct_sign(iY(i, j)) == mathematically_correct_sign(dY(i, j)) ? gains(i, j)*0.8 : gains(i, j)+0.2, 0.01);
             }
         }
 
@@ -431,9 +619,16 @@ int main(int argc, char** argv) {
                 }
             }
 
-            std::cerr << "[it = " << it << "] KL(P || Q)_est = " << kl << '\n';
+            std::cout << it << "," << kl << "," << dY.norm() << '\n';
+        }
+
+        if(print_intermediate && it % 5 == 0) {
+            fs::create_directory("gif");
+            std::string outname = std::string{ "gif/" } + fs::path(argv[optind]).stem().string() + "_embedding_it_" + std::to_string(it) + ".csv";
+            print_csv(outname, Y, labels);
         }
     }
 
-    std::cout << Y << '\n';
+    std::string outname = fs::path(argv[optind]).stem().string() + "_embedding.csv";
+    print_csv(outname, Y, labels);
 }

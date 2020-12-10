@@ -76,7 +76,7 @@ def run_binary_search(dist_sq_one_point, perp, i, tol=1e-5):
     return sigma_hat
 
 def partition_embedding_space(Y, k):
-    kmeans = KMeans(n_clusters=k, init='random', max_iter=10).fit(Y)
+    kmeans = KMeans(n_clusters=k, init='random', max_iter=10, algorithm="full").fit(Y)
 
     cell_centers = np.zeros((k, Y.shape[1]))
     n_cell = np.zeros(k)
@@ -131,7 +131,7 @@ class NaiveTSNE():
         # run gradient descent
         for t in range(self.n_iter):
             # partition embedding space
-            k = random.randint(5, 50)
+            k = 10
             centers, n_cell = partition_embedding_space(Y, k)
 
             ### EXACT {{{
@@ -187,6 +187,9 @@ class NaiveTSNE():
 from sklearn import datasets
 data = normalize(datasets.load_digits().data)
 classes = datasets.load_digits().target
+
+print(data.shape)
+exit()
 
 tsne = NaiveTSNE(save_embeddings=False, eta=20)
 embedded = tsne.fit_transform(data)
