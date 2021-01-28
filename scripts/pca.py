@@ -15,12 +15,25 @@ if len(argv) < 3:
 f = argv[1]
 d = int(argv[2])
 
-df = pd.read_csv(f)
-X = df.to_numpy()
+_, extname = os.path.splitext(f)
+if extname == ".npz":
+    import scipy.sparse
+    X = scipy.sparse.load_npz(f)
+elif extname == ".csv":
+    df = pd.read_csv(f)
+    X = df.to_numpy()
+else:
+    print("unknown extension:", extname)
+    exit(-1)
+
 print(f"original shape = {X.shape}")
 
-X_std = StandardScaler().fit_transform(X)
-X_ = PCA(n_components=d).fit_transform(X)
+if extname == ".npz":
+    from sklearn.decomposition import TruncatedSVD
+    X_ = TruncatedSVD(n_components=d).fit_transform(X)
+else:
+    X_std = StandardScaler().fit_transform(X)
+    X_ = PCA(n_components=d).fit_transform(X)
 
 print(f"shape after dimensionality reduction = {X_.shape}")
 
