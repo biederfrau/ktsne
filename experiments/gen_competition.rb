@@ -9,6 +9,6 @@ datasets.each do |dataset|
   seeds.each do |seed|
     puts "python3 ../scripts/run_umap.py ../#{dataset}/#{dataset}_d_#{d}.csv #{seed}"
     puts "python3 ../scripts/run_fitsne.py ../#{dataset}/#{dataset}_d_#{d}.csv #{seed}"
-    puts "python3 ../bhtsne.py -i ../#{dataset}/#{dataset}_d_#{d}.csv -o bhtsne_#{dataset}_d_#{d}_s_#{seed}.tsv --randseed #{seed}"
+    puts "python3 ../bhtsne/bhtsne.py -i ../#{dataset}/#{dataset}_d_#{d}.csv -o bhtsne_#{dataset}_d_#{d}_s_#{seed}.tsv --randseed #{seed}"
   end
 end
