@@ -642,7 +642,7 @@ int main(int argc, char** argv) {
     }
 
     std::stringstream outname_ss;
-    outname_ss << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << eta << "_p_" << p << "_s_" << s << ".csv";
+    outname_ss << "ktsne_" << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << eta << "_p_" << p << "_s_" << s << ".csv";
 
     print_csv(outname_ss.str(), Y, labels);
 }
