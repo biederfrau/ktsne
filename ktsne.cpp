@@ -159,7 +159,7 @@ double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp
     return beta;
 }/*}}}*/
 
-Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t l, size_t b, size_t t) {/*{{{*/
+Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t l, size_t b, int t) {/*{{{*/
     falconn::LSHConstructionParameters params = falconn::get_default_parameters<point_t>(
         data.size(),
         data[0].size(),
@@ -167,13 +167,16 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
         true
     );
 
+    params.l = l;
+    // params.k = b; // unclear for cross polytope
+
     auto table = falconn::construct_table<point_t>(data, params);
     std::vector<Eigen::Triplet<double>> triplets; triplets.reserve(data.size()*3*perp);
 
     // find k nearest neighbors for every point. k is equal to 3*perp as per the paper
     for(size_t i = 0; i < data.size(); ++i) {
         std::vector<int32_t> result; result.reserve(3*perp + 1);
-        auto query = table->construct_query_object(/*num_probes*/ -1, /*max_num_candidates*/ -1);
+        auto query = table->construct_query_object(/*num_probes*/ t != -1 ? params.l + t : t, /*max_num_candidates*/ -1);
 
         query->find_k_nearest_neighbors(data[i], 3*perp + 1, &result);
         result.erase(std::remove(result.begin(), result.end(), i)); // remove self from neighbors
@@ -211,9 +214,17 @@ void initialize_gaussian(Eigen::MatrixXdr& A, double sigma, RNG&& gen) {
     for(size_t i = 0; i < A.size(); ++i) { *(A.data() + i) = dist(gen); }
 }
 
-void initialize_PCA(Eigen::MatrixXdr& A, Eigen::MatrixXdr const& X) {
+void initialize_PCA(Eigen::MatrixXdr& A, std::vector<point_t> const& data) {
+    Eigen::MatrixXdr X(data.size(), data[0].size());
+    for(size_t i = 0; i < data.size(); ++i) { X.row(i) = data[i]; }
+
+    Eigen::MatrixXdr X_centered = X.rowwise() - X.colwise().mean();
+    Eigen::MatrixXdr X_cov = X_centered.adjoint() * X_centered;
+
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXdr> eig(X_cov);
+
     size_t dim = A.cols();
-    // TODO: reduce X to dim dimensions using PCA, use as initialization
+    A = X * eig.eigenvectors().rightCols(dim);
 }
 
 /* kmeans++ initialization strategy
@@ -419,7 +430,7 @@ void print_csv(std::string filename, Eigen::MatrixXdr const& Y, std::vector<int>
 #endif
 
 #ifndef T
-#define T 1
+#define T -1
 #endif
 
 #ifndef A
@@ -432,9 +443,9 @@ void print_csv(std::string filename, Eigen::MatrixXdr const& Y, std::vector<int>
 
 int main(int argc, char** argv) {
     size_t p = P;
-    size_t l = L;
-    size_t b = B;
-    size_t t = T;
+    int l = L;
+    int b = B;
+    int t = T;
     size_t a = A;
     size_t z = Z;
     size_t s = 666;
@@ -512,7 +523,7 @@ int main(int argc, char** argv) {
                           << "  -a ... lower bound for k-means k, default = " << A << '\n'
                           << "  -z ... upper bound for k-means k, default = " << Z << '\n'
                           << "  -v ... run in verbose mode\n"
-                          << "  -g ... print intermediate embedding every iteration (for creating GIFs)\n"
+                          << "  -g ... print intermediate embedding to file every iteration (for creating GIFs)\n"
                           << "  -h ... this message\n\n"
 
                           << "ktsne is an accelerated approximative version of tsne which uses LSH and kmeans in its computation.\n";
@@ -548,7 +559,8 @@ int main(int argc, char** argv) {
     P_ij /= P_ij.sum();
 
     Eigen::MatrixXdr Y(n, d);
-    initialize_gaussian(Y, 10e-4, gen);
+    // initialize_gaussian(Y, 10e-4, gen);
+    initialize_PCA(Y, data);
 
     Eigen::MatrixXdr iY    = Eigen::MatrixXdr::Zero(n, d);
     Eigen::MatrixXdr dY    = Eigen::MatrixXdr::Zero(n, d);
@@ -557,7 +569,7 @@ int main(int argc, char** argv) {
     std::uniform_int_distribution<size_t> k_dist{ a, z };
 
     if(verbose) { std::cerr << "[verbose] starting gradient descent\n"; }
-    if(compute_objective) { std::cout << "it,obj,norm\n"; }
+    if(compute_objective) { std::cout << "it,obj,normdY\n"; }
 
     for(size_t it = 0; it < max_iter; ++it) {
         Eigen::MatrixXdr F_attr = Eigen::MatrixXdr::Zero(n, d);
@@ -629,6 +641,8 @@ int main(int argc, char** argv) {
         }
     }
 
-    std::string outname = fs::path(argv[optind]).stem().string() + "_embedding.csv";
-    print_csv(outname, Y, labels);
+    std::stringstream outname_ss;
+    outname_ss << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << eta << "_p_" << p << "_s_" << s << ".csv";
+
+    print_csv(outname_ss.str(), Y, labels);
 }
