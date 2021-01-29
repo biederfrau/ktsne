@@ -18,6 +18,8 @@
 using point_t = falconn::DenseVector<double>;
 namespace fs = std::filesystem;
 
+bool verbose = false;
+
 namespace Eigen {
     using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
 }
@@ -173,6 +175,8 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
     auto table = falconn::construct_table<point_t>(data, params);
     std::vector<Eigen::Triplet<double>> triplets; triplets.reserve(data.size()*3*perp);
 
+    size_t count_not_enough = 0;
+
     // find k nearest neighbors for every point. k is equal to 3*perp as per the paper
     for(size_t i = 0; i < data.size(); ++i) {
         std::vector<int32_t> result; result.reserve(3*perp + 1);
@@ -182,7 +186,15 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
         result.erase(std::remove(result.begin(), result.end(), i)); // remove self from neighbors
 
         if(result.size() != 3*perp) {
-            std::cerr << __func__ << " [WARN] LSH query returned " << result.size() << " points instead of the requested " << 3*perp << '\n'
+            count_not_enough += 1;
+            if(verbose) {
+                std::cerr << __func__ << " [WARN] LSH query returned " << result.size() << " points instead of the requested " << 3*perp << '\n'
+                          << "consider enabling multiprobing or decreasing the perplexity.\n";
+            }
+        }
+
+        if(count_not_enough) {
+            std::cerr << __func__ << " [INFO] not enough neighbors were returned for " << count_not_enough << " points.\n"
                       << "consider enabling multiprobing or decreasing the perplexity.\n";
         }
 
@@ -453,7 +465,6 @@ int main(int argc, char** argv) {
 
     double eta = 20;
 
-    bool verbose = false;
     bool compute_objective = false;
     bool print_intermediate = false;
 
