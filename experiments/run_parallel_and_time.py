@@ -1,20 +1,43 @@
 #!/usr/bin/env python3
+
+import re
+import sys
+import os
 import subprocess
 from multiprocessing.dummy import Pool as ThreadPool
 import time
 
-def run(n):
+def run(cmd):
     start = time.time()
-    proc = subprocess.Popen(f"../ktsne ../data/random/random_n_{n}_64.csv 2> /dev/null", shell=True).communicate()
+    FNULL = open(os.devnull, 'w')
+    proc = subprocess.Popen(cmd, shell=True, stderr=FNULL, stdout=FNULL).communicate()
     end = time.time()
 
-    return (n, end - start)
+    replace = ['python3', '..', '/', 'run_', 'scripts', '.py']
+    cmd_ = ''.join(cmd.split()[:2])
+    if cmd.startswith('..'): cmd_ = ''.join(cmd.split()[:1])
+
+    for thingy in replace:
+        cmd_ = cmd_.replace(thingy, '')
+
+    try:
+        dataset = re.search('../data/(.*)/(.*.csv[^$\n])', cmd).group(2)
+    except AttributeError:
+        print("invalid command, could not parse dataset:", cmd)
+        dataset = "???"
+
+    return (cmd_.strip(), dataset.strip(), end - start)
 
 pr = 64
-ns = [100, 500, 1000, 5000, 10000, 50000, 100000, 500000, 1000000]
-
 pool = ThreadPool(pr)
 
-print("n,t")
-for n, t in pool.map(run, ns):
-    print(f"{n},{t}")
+if len(sys.argv) < 1:
+    print("give me a command file")
+    sys.exit(-1)
+
+with open(sys.argv[1]) as f:
+    cmds = f.readlines()
+
+print("algo,data,t")
+for cmd, dataset, t in pool.map(run, cmds):
+    print(f"{cmd},{dataset},{t}")
