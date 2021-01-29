@@ -193,11 +193,6 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
             }
         }
 
-        if(count_not_enough) {
-            std::cerr << __func__ << " [INFO] not enough neighbors were returned for " << count_not_enough << " points.\n"
-                      << "consider enabling multiprobing or decreasing the perplexity.\n";
-        }
-
         // compute neighbor distance for every neighbor point
         std::vector<double> dist_sq_one_point; dist_sq_one_point.reserve(result.size());
         for(size_t j = 0; j < result.size(); ++j) { dist_sq_one_point.push_back((data[i] - data[result[j]]).squaredNorm()); }
@@ -212,6 +207,11 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
 
         // row normalize and add to coefficients
         for(size_t j = 0; j < result.size(); ++j) { triplets.push_back({static_cast<int>(i), result[j], P[j] / sum_P}); };
+    }
+
+    if(count_not_enough) {
+        std::cerr << __func__ << " [INFO] not enough neighbors were returned for " << count_not_enough << " points.\n"
+                  << "consider enabling multiprobing or decreasing the perplexity.\n";
     }
 
     Eigen::SparseMatrix<double> P_j_given_i(data.size(), data.size());
