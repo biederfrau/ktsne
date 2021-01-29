@@ -13,7 +13,7 @@ def run(cmd):
     proc = subprocess.Popen(cmd, shell=True, stderr=FNULL, stdout=FNULL).communicate()
     end = time.time()
 
-    replace = ['python3', '..', '/', 'run_', 'scripts', '.py']
+    replace = ['python3', '..', '/bhtsne/', '/', 'run_', 'scripts', '.py']
     cmd_ = ''.join(cmd.split()[:2])
     if cmd.startswith('..'): cmd_ = ''.join(cmd.split()[:1])
 
@@ -26,6 +26,7 @@ def run(cmd):
         print("invalid command, could not parse dataset:", cmd)
         dataset = "???"
 
+    print(cmd.strip(), "took", end - start, "seconds", file=sys.stderr)
     return (cmd_.strip(), dataset.strip(), end - start)
 
 pr = 64
