@@ -508,7 +508,7 @@ int main(int argc, char** argv) {
                 std::cerr << "lower bound for kmeans k a = " << a << '\n';
                 break;
             case 'z':
-                a = std::atoll(optarg);
+                z = std::atoll(optarg);
                 std::cerr << "upper bound for kmeans k z = " << z << '\n';
                 break;
             case 's':
@@ -630,7 +630,7 @@ int main(int argc, char** argv) {
         Eigen::RowVectorXd Y_mean = Y.colwise().mean();
         Y = Y.rowwise() - Y_mean;
 
-        if(compute_objective) {
+        if(compute_objective) { // warning: this is slow!
             double kl = 0;
 
             for(int k = 0; k < P_ij.outerSize(); ++k) {
