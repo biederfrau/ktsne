@@ -19,6 +19,7 @@ using point_t = falconn::DenseVector<double>;
 namespace fs = std::filesystem;
 
 bool verbose = false;
+bool compute_objective = false;
 
 namespace Eigen {
     using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
@@ -130,6 +131,10 @@ Eigen::MatrixXdr compute_sq_dist_binomial(Eigen::MatrixXdr const& X, Eigen::Matr
     return D;
 }/*}}}*/
 
+double compute_procrustes(Eigen::MatrixXdr const& dY) {
+
+}
+
 double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp, double const tol=1e-5) {/*{{{*/
     double beta = 1.0, min_beta = std::numeric_limits<double>::lowest(), max_beta = std::numeric_limits<double>::max();
     std::vector<double> P; P.resize(dist_sq_one_point.size());
@@ -188,7 +193,7 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
         if(result.size() != 3*perp) {
             count_not_enough += 1;
             if(verbose) {
-                std::cerr << __func__ << " [WARN] LSH query returned " << result.size() << " points instead of the requested " << 3*perp << '\n'
+                std::cerr << __func__ << " [INFO] LSH query returned " << result.size() << " points instead of the requested " << 3*perp << '\n'
                           << "consider enabling multiprobing or decreasing the perplexity.\n";
             }
         }
@@ -381,10 +386,13 @@ std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eig
 
     // reverse cluster_assignments, needed to later compute the objective by selecting the appropiate
     // centroid for every point
-    std::vector<size_t> point_assignments; point_assignments.resize(Y.rows());
-    for(size_t n = 0; n < k; ++n) {
-        auto range = cluster_assignments.equal_range(n);
-        for(auto it = range.first; it != range.second; ++it) { point_assignments[it->second] = n; }
+    std::vector<size_t> point_assignments;
+    if(compute_objective) {
+        point_assignments.resize(Y.rows());
+        for(size_t n = 0; n < k; ++n) {
+            auto range = cluster_assignments.equal_range(n);
+            for(auto it = range.first; it != range.second; ++it) { point_assignments[it->second] = n; }
+        }
     }
 
     return std::make_tuple(centroids, num_assigned, point_assignments);
@@ -465,7 +473,6 @@ int main(int argc, char** argv) {
 
     double eta = 20;
 
-    bool compute_objective = false;
     bool print_intermediate = false;
 
     char c;
@@ -563,9 +570,7 @@ int main(int argc, char** argv) {
 
     if(b == -1) { b = std::max(16ul, static_cast<size_t>(std::log2(n))); }
 
-    if(verbose) { std::cerr << "[verbose] computing high_dimensional_affinities\n"; }
     Eigen::SparseMatrix<double> P_j_given_i = high_dimensional_affinities(data, p, l, b, t);
-
     Eigen::SparseMatrix<double> P_ij = Eigen::SparseMatrix<double>(P_j_given_i.transpose()) + P_j_given_i;
     P_ij /= P_ij.sum();
 
@@ -579,7 +584,6 @@ int main(int argc, char** argv) {
 
     std::uniform_int_distribution<size_t> k_dist{ a, z };
 
-    if(verbose) { std::cerr << "[verbose] starting gradient descent\n"; }
     if(compute_objective) { std::cout << "it,obj,normdY\n"; }
 
     for(size_t it = 0; it < max_iter; ++it) {
@@ -590,7 +594,6 @@ int main(int argc, char** argv) {
         for(int k = 0; k < P_ij.outerSize(); ++k) {
             for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
                 int i = it.row(), j = it.col();
-                assert(i != j);
 
                 auto diff = Y.row(i) - Y.row(j);
                 F_attr.row(i) += early_exaggeration*it.value() * (1/(1 + diff.squaredNorm())) * diff;
