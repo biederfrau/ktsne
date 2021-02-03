@@ -568,7 +568,7 @@ int main(int argc, char** argv) {
     size_t const n = data.size();
     size_t const d = 2;
 
-    if(b == -1) { b = std::max(16ul, static_cast<size_t>(std::log2(n))); }
+    if(b == -1) { b = std::max(static_cast<size_t>(16), static_cast<size_t>(std::log2(n))); }
 
     Eigen::SparseMatrix<double> P_j_given_i = high_dimensional_affinities(data, p, l, b, t);
     Eigen::SparseMatrix<double> P_ij = Eigen::SparseMatrix<double>(P_j_given_i.transpose()) + P_j_given_i;
