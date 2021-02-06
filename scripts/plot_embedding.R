@@ -2,20 +2,36 @@
 
 library(ggplot2)
 library(ggthemes)
+library(scales)
 library(tools)
 
-theme_set(theme_light())
+theme_set(theme_solid())
 
-f <- commandArgs(trailingOnly=T)[1]
-m <- regmatches(f, regexec(".*/(.*)_embedding_it_(\\d+).csv", f))[[1]]
+argv <- commandArgs(trailingOnly=T)
 
-if(is.na(m[2])) {
-    m <- regmatches(f, regexec("(.*)_embedding.*.csv", f))[[1]]
+f <- argv[1]
+s <- strsplit(basename(tools::file_path_sans_ext(f)), '_')[[1]]
+
+algo <- s[1]
+dataset <- s[2]
+
+# ugh the regex i used in python for this does not work the same
+# in R for whatever reason
+if(dataset == "fashion") {
+    dataset <- paste(s[2], '_', s[3], sep='')
 }
 
-df <- read.csv(f)
+df <- read.csv(f, header=!grepl("bhtsne", f))
+colnames(df) <- c("x", "y")
+labels <- read.csv(file.path(getwd(), '..', 'data', dataset, paste(dataset, "_labels.txt", sep="")), header=F)
 
-df$label <- as.factor(df$label)
-ggplot(df, aes(x=x, y=y)) + geom_point(aes(color=label)) + ggtitle(paste(m[2], ", it = ", m[3], sep=""))
+df$label <- as.factor(labels$V1)
+sz <- 0.8
 
-ggsave(paste(tools::file_path_sans_ext(f), ".jpg", sep=""), device="jpg", width=10, height=7.5, units="cm", dpi="print")
+pal <- tableau_color_pal('Superfishel Stone')(nlevels(df$label))
+ggplot(df, aes(x=x, y=y, color=label)) + geom_point(show.legend=F, size=sz) + scale_color_manual(values=pal)
+
+outname <- paste(tools::file_path_sans_ext(f), ".jpg", sep="")
+ggsave(outname, device="jpg", width=30, height=30, units="cm", dpi="print")
+
+print(paste("output in", outname))

@@ -5,6 +5,8 @@ import numpy as np
 import os
 import sys
 
+import re
+
 from sklearn.neighbors import NearestNeighbors
 
 if len(sys.argv) < 2:
@@ -12,10 +14,15 @@ if len(sys.argv) < 2:
     sys.exit(-1)
 
 f = sys.argv[1]
-df = pd.read_csv(f)
+df = pd.read_csv(f, header=None if "bhtsne" in f else 0)
 
-X = df.loc[:, df.columns != "label"].to_numpy()
-y = df["label"].to_numpy()
+dataset = re.search('([^_]*)_(.*)_d', f).group(2)
+
+label_f = os.path.join('..', 'data', dataset, dataset + '_labels.txt')
+labels = pd.read_csv(label_f, header=None)
+
+X = df.to_numpy()
+y = labels.to_numpy()
 
 k = 5 if len(sys.argv) < 3 else int(sys.argv[2])
 nn = NearestNeighbors(n_neighbors=k).fit(X)

@@ -587,16 +587,18 @@ int main(int argc, char** argv) {
     if(compute_objective) { std::cout << "it,obj,normdY\n"; }
 
     for(size_t it = 0; it < max_iter; ++it) {
+        if(it % 100 == 0) { std::cerr << "it = " << it << '\n'; }
         Eigen::MatrixXdr F_attr = Eigen::MatrixXdr::Zero(n, d);
 
-        double early_exaggeration = it < 50 ? 12 : 1; // artificially inflate P_ij value for first few iterations
+        double exaggeration = it < 0.25*max_iter ? 12 : 1; // artificially inflate P_ij value for first few iterations
+        exaggeration = it > 0.9*max_iter ? 4 : 1;
 
         for(int k = 0; k < P_ij.outerSize(); ++k) {
             for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
                 int i = it.row(), j = it.col();
 
                 auto diff = Y.row(i) - Y.row(j);
-                F_attr.row(i) += early_exaggeration*it.value() * (1/(1 + diff.squaredNorm())) * diff;
+                F_attr.row(i) += exaggeration*it.value() * (1/(1 + diff.squaredNorm())) * diff;
             }
         }
 
