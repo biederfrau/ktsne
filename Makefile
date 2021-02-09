@@ -2,7 +2,7 @@ OPT_FLAGS := -O4 -floop-parallelize-all -floop-nest-optimize -floop-flatten -flo
 EXT := -Ifalconn/external/eigen -Ifalconn/external/simple-serializer -Ifalconn/src/include
 
 ktsne: ktsne.cpp
-	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG $(OPT_FLAGS) -pthread -o ktsne
+	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG $(OPT_FLAGS) -pthread -o ktsne -DEIGEN_DONT_PARALLELIZE
 
 ktsne_debug: ktsne.cpp
-	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -Og -pthread -o ktsne_debug
+	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG -Og -pthread -o ktsne_debug -DEIGEN_DONT_PARALLELIZE

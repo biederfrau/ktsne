@@ -131,9 +131,9 @@ Eigen::MatrixXdr compute_sq_dist_binomial(Eigen::MatrixXdr const& X, Eigen::Matr
     return D;
 }/*}}}*/
 
-double compute_procrustes(Eigen::MatrixXdr const& dY) {
+// double compute_procrustes(Eigen::MatrixXdr const& dY) {
 
-}
+// }
 
 double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp, double const tol=1e-5) {/*{{{*/
     double beta = 1.0, min_beta = std::numeric_limits<double>::lowest(), max_beta = std::numeric_limits<double>::max();
@@ -313,6 +313,20 @@ void multimap_remove_single_value(std::unordered_multimap<K, V>& m, K const& key
     m.erase(it);
 }/*}}}*/
 
+Eigen::MatrixXdr::Index find_min(Eigen::MatrixXdr const& mat, int row) {
+    double mini = INFINITY;
+    int mini_index;
+
+    for(int j = 0; j < mat.cols(); ++j) {
+        if(mat(row, j) < mini) {
+            mini = mat(row, j);
+            mini_index = j;
+        }
+    }
+
+    return mini_index;
+}
+
 template <class RNG>
 std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXdr const& Y, size_t const k, size_t const max_iter, RNG&& gen) {/*{{{*/
     std::unordered_set<size_t> centroid_idxs;
@@ -322,16 +336,15 @@ std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eig
     Eigen::MatrixXdr centroids = kmeans_initialize_random(Y, k, gen);
     // Eigen::MatrixXdr centroids = kmeanspp_initialize(Y, k, gen);
 
-    std::unordered_multimap<size_t, int> cluster_assignments; // map: centroid idx -> {point idxs}
+    std::vector<std::vector<size_t>> cluster_assignments; cluster_assignments.resize(k);
     for(size_t it = 0; it < max_iter; ++it) {
-        cluster_assignments.clear();
+        for(auto& vec: cluster_assignments) { vec.clear(); vec.reserve(Y.rows()/k); } // clear should not change capacity(), so this should only allocate the very first time!
 
         // assign
         Eigen::MatrixXdr sq_dist = compute_sq_dist_binomial(Y, centroids);
         for(int i = 0; i < Y.rows(); ++i) {
-            Eigen::MatrixXdr::Index nearest_centroid_idx = -1;
-            sq_dist.row(i).minCoeff(&nearest_centroid_idx);
-            cluster_assignments.insert(std::make_pair(nearest_centroid_idx, i));
+            Eigen::MatrixXdr::Index nearest_centroid_idx = find_min(sq_dist, i);
+            cluster_assignments[nearest_centroid_idx].push_back(i);
         }
 
         // for every cluster that is empty, find a replacement point which is
@@ -341,40 +354,40 @@ std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eig
         for(size_t n = 0; n < k; ++n) {
             std::unordered_set<size_t> replacement_points;
 
-            if(cluster_assignments.count(n) == 0) {
+            if(cluster_assignments[n].size() == 0) {
                 double farthest_dist =  0;
                 size_t taken_from    = -1;
                 int farthest_idx     = -1;
 
                 for(size_t nn = 0; nn < k; ++nn) {
-                    if(n == nn || cluster_assignments.count(nn) < 2) { continue; }
+                    if(n == nn || cluster_assignments[nn].size() < 2) { continue; }
 
-                    auto range = cluster_assignments.equal_range(nn);
+                    auto range = std::make_pair(cluster_assignments[nn].begin(), cluster_assignments[nn].end());
                     for(auto it = range.first; it != range.second; ++it) {
-                        double dist = (centroids.row(nn) - Y.row(it->second)).squaredNorm();
+                        double dist = (centroids.row(nn) - Y.row(*it)).squaredNorm();
 
-                        if(dist > farthest_dist && !replacement_points.count(it->second)) {
+                        if(dist > farthest_dist && !replacement_points.count(*it)) {
                             farthest_dist = dist;
-                            farthest_idx  = it->second;
+                            farthest_idx  = *it;
                             taken_from    = nn;
                         }
                     }
                 }
 
                 replacement_points.insert(farthest_idx);
-                multimap_remove_single_value(cluster_assignments, taken_from, farthest_idx);
+                std::remove(cluster_assignments[taken_from].begin(), cluster_assignments[taken_from].end(), farthest_idx);
 
-                cluster_assignments.insert(std::make_pair(n, farthest_idx));
+                cluster_assignments[n].push_back(farthest_idx);
             }
         }
 
         // update
         for(size_t n = 0; n < k; ++n) {
             Eigen::VectorXd new_centroid = Eigen::VectorXd::Zero(Y.cols());
-            auto range = cluster_assignments.equal_range(n);
-            for(auto it = range.first; it != range.second; ++it) { new_centroid += Y.row(it->second); }
+            auto range = std::make_pair(cluster_assignments[n].begin(), cluster_assignments[n].end());
+            for(auto it = range.first; it != range.second; ++it) { new_centroid += Y.row(*it); }
 
-            new_centroid /= cluster_assignments.count(n);
+            new_centroid /= cluster_assignments[n].size();
             centroids.row(n) = new_centroid;
         }
 
@@ -382,7 +395,7 @@ std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eig
     }
 
     Eigen::VectorXd num_assigned{ k };
-    for(size_t n = 0; n < k; ++n) { num_assigned(n) = cluster_assignments.count(n); }
+    for(size_t n = 0; n < k; ++n) { num_assigned(n) = cluster_assignments[n].size(); }
 
     // reverse cluster_assignments, needed to later compute the objective by selecting the appropiate
     // centroid for every point
@@ -390,8 +403,8 @@ std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eig
     if(compute_objective) {
         point_assignments.resize(Y.rows());
         for(size_t n = 0; n < k; ++n) {
-            auto range = cluster_assignments.equal_range(n);
-            for(auto it = range.first; it != range.second; ++it) { point_assignments[it->second] = n; }
+            auto range = std::make_pair(cluster_assignments[n].begin(), cluster_assignments[n].end());
+            for(auto it = range.first; it != range.second; ++it) { point_assignments[*it] = n; }
         }
     }
 
