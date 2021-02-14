@@ -131,9 +131,9 @@ Eigen::MatrixXdr compute_sq_dist_binomial(Eigen::MatrixXdr const& X, Eigen::Matr
     return D;
 }/*}}}*/
 
-// double compute_procrustes(Eigen::MatrixXdr const& dY) {
-
-// }
+double compute_procrustes(Eigen::MatrixXdr const& X, Eigen::MatrixXdr const& Y) {
+    return (X - Y).array().square().sum();
+}
 
 double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp, double const tol=1e-5) {/*{{{*/
     double beta = 1.0, min_beta = std::numeric_limits<double>::lowest(), max_beta = std::numeric_limits<double>::max();
@@ -588,6 +588,8 @@ int main(int argc, char** argv) {
     P_ij /= P_ij.sum();
 
     Eigen::MatrixXdr Y(n, d);
+    Eigen::MatrixXdr Y_(n, d);
+
     // initialize_gaussian(Y, 10e-4, gen);
     initialize_PCA(Y, data);
 
@@ -597,7 +599,7 @@ int main(int argc, char** argv) {
 
     std::uniform_int_distribution<size_t> k_dist{ a, z };
 
-    if(compute_objective) { std::cout << "it,obj,normdY\n"; }
+    if(compute_objective) { std::cout << "it,obj,normdY,procrustes\n"; }
 
     for(size_t it = 0; it < max_iter; ++it) {
         if(it % 100 == 0) { std::cerr << "it = " << it << '\n'; }
@@ -642,6 +644,8 @@ int main(int argc, char** argv) {
             }
         }
 
+        Y_ = Y;
+
         iY = momentum(it)*iY - eta*(gains.cwiseProduct(dY));
         Y += iY;
 
@@ -660,7 +664,9 @@ int main(int argc, char** argv) {
                 }
             }
 
-            std::cout << it << "," << kl << "," << dY.norm() << '\n';
+            double procrustes_error = compute_procrustes(Y_, Y);
+
+            std::cout << it << "," << kl << "," << dY.norm() << "," << procrustes_error << '\n';
         }
 
         if(print_intermediate && it % 5 == 0) {
