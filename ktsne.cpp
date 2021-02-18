@@ -8,6 +8,8 @@
 #include <string>
 #include <unordered_set>
 #include <vector>
+
+#include <getopt.h>
 #include <unistd.h>
 
 #include <Eigen/Dense>
@@ -17,9 +19,6 @@
 
 using point_t = falconn::DenseVector<double>;
 namespace fs = std::filesystem;
-
-bool verbose = false;
-bool compute_objective = false;
 
 namespace Eigen {
     using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
@@ -166,7 +165,7 @@ double tune_beta(std::vector<double> const& dist_sq_one_point, size_t const perp
     return beta;
 }/*}}}*/
 
-Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t l, size_t b, int t) {/*{{{*/
+Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> const& data, size_t perp, size_t num_hash_tables, size_t bits, int num_probes, bool use_hyperplane=false) {/*{{{*/
     falconn::LSHConstructionParameters params = falconn::get_default_parameters<point_t>(
         data.size(),
         data[0].size(),
@@ -174,8 +173,11 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
         true
     );
 
-    params.l = l;
-    // params.k = b; // unclear for cross polytope
+    params.l = num_hash_tables;
+    if(use_hyperplane) {
+        params.lsh_family = falconn::LSHFamily::Hyperplane;
+        params.k = bits; // unclear for cross polytope
+    }
 
     auto table = falconn::construct_table<point_t>(data, params);
     std::vector<Eigen::Triplet<double>> triplets; triplets.reserve(data.size()*3*perp);
@@ -185,18 +187,12 @@ Eigen::SparseMatrix<double> high_dimensional_affinities(std::vector<point_t> con
     // find k nearest neighbors for every point. k is equal to 3*perp as per the paper
     for(size_t i = 0; i < data.size(); ++i) {
         std::vector<int32_t> result; result.reserve(3*perp + 1);
-        auto query = table->construct_query_object(/*num_probes*/ t != -1 ? params.l + t : t, /*max_num_candidates*/ -1);
+        auto query = table->construct_query_object(/*num_probes*/ num_probes != -1 ? params.l + num_probes : num_probes, /*max_num_candidates*/ -1);
 
         query->find_k_nearest_neighbors(data[i], 3*perp + 1, &result);
         result.erase(std::remove(result.begin(), result.end(), i)); // remove self from neighbors
 
-        if(result.size() != 3*perp) {
-            count_not_enough += 1;
-            if(verbose) {
-                std::cerr << __func__ << " [INFO] LSH query returned " << result.size() << " points instead of the requested " << 3*perp << '\n'
-                          << "consider enabling multiprobing or decreasing the perplexity.\n";
-            }
-        }
+        if(result.size() != 3*perp) { count_not_enough += 1; }
 
         // compute neighbor distance for every neighbor point
         std::vector<double> dist_sq_one_point; dist_sq_one_point.reserve(result.size());
@@ -328,7 +324,7 @@ Eigen::MatrixXdr::Index find_min(Eigen::MatrixXdr const& mat, int row) {
 }
 
 template <class RNG>
-std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXdr const& Y, size_t const k, size_t const max_iter, RNG&& gen) {/*{{{*/
+std::tuple<Eigen::MatrixXdr, Eigen::VectorXd, std::vector<size_t>> do_kmeans(Eigen::MatrixXdr const& Y, size_t const k, size_t const max_iter, RNG&& gen, bool compute_objective=false) {/*{{{*/
     std::unordered_set<size_t> centroid_idxs;
     std::uniform_int_distribution<size_t> dist{ 0, static_cast<size_t>(Y.rows() - 1)};
     while(centroid_idxs.size() != k) { centroid_idxs.insert(dist(gen)); }
@@ -450,130 +446,115 @@ void print_csv(std::string filename, Eigen::MatrixXdr const& Y, std::vector<int>
     }
 }/*}}}*/
 
-#ifndef P
-#define P 5
-#endif
+struct config_t {
+    double eta                   = 200;
+    unsigned int perplexity      = 50;
+    double early_exaggeration    = 12;
+    double late_exaggeration     = 4;
 
-#ifndef L
-#define L 10
-#endif
+    unsigned int num_hash_tables = 10;
+             int num_hash_bits   = -1;
+             int num_probes      = -1;
 
-#ifndef B
-#define B -1
-#endif
+    unsigned int kmeans_lo       = 5;
+    unsigned int kmeans_hi       = 50;
 
-#ifndef T
-#define T -1
-#endif
+    unsigned int seed            = 666;
+    size_t max_iter              = 1000;
 
-#ifndef A
-#define A 5
-#endif
+    int compute_objective        = 0;
+    int print_intermediate       = 0;
+    int use_hyperplane           = 0;
+    int random_init              = 0;
+};
 
-#ifndef Z
-#define Z 50
-#endif
+void print_usage(std::string const& program) {
+    config_t default_config;
+    std::cerr << "usage: " << program << " opts FILE\n"
+              << "where opt in opts is one of the following:\n\n"
+
+              << "  -p                       ... perplexity (effective number of neighbors per point). tunable parameter, default = " << default_config.perplexity << '\n'
+              << "  -n                       ... stepsize eta of gradient descent, default = " << default_config.eta << '\n'
+              << "  -x, --early-exaggeration ... early exaggeration value, default = " << default_config.early_exaggeration << '\n'
+              << "  -X, --late-exaggeration  ... late exaggeration value, default = " << default_config.late_exaggeration << '\n'
+              << "  -i, --max-iter           ... number of gradient descent iterations, default = " << default_config.max_iter << '\n'
+              << "  -s, --seed               ... random seed\n\n"
+
+              << "  -k, --k-lo ... lower bound for k-means k, default = " << default_config.kmeans_lo << '\n'
+              << "  -K, --k-hi ... upper bound for k-means k, default = " << default_config.kmeans_hi << "\n\n"
+
+              << "  --num-hash-tables ... number of hash tables for FALCONN lsh. tunable parameter, default = " << default_config.num_hash_tables << '\n'
+              << "  --num-hash-bits   ... number of hash bits, controls number of buckets per table. automatically set to max(16, log2(n)) if -1 is passed, default = " << default_config.num_hash_bits << '\n'
+              << "  --num-probes      ... number of probes for multi-probe LSH. tunable parameter (inverse relation to L), default = " << default_config.num_probes << "\n\n"
+
+              << "  --[no-]compute-objective  ... compute objective in every iteration, default = " << (default_config.compute_objective ? "on" : "off") << '\n'
+              << "  --[no-]print_intermediate ... print intermediate embedding to file every iteration (for creating GIFs), default = " << (default_config.print_intermediate ? "on" : "off") << "\n\n"
+              << "  --use-hyperplane          ... use hyperplane LSH (instead of cross-polytope), default = " << (default_config.use_hyperplane ? "on" : "off") << '\n'
+              << "  --use-cross-polytope      ... use cross-polytope LSH (instead of hyperplane LSH), default = " << (!default_config.use_hyperplane ? "on" : "off") << '\n'
+
+              << "  -h ... this message\n\n"
+
+              << "and FILE is a csv file.\n\n"
+
+              << "ktsne is an accelerated approximative version of tsne which uses LSH and kmeans in its computation.\n";
+}
 
 int main(int argc, char** argv) {
-    size_t p = P;
-    int l = L;
-    int b = B;
-    int t = T;
-    size_t a = A;
-    size_t z = Z;
-    size_t s = 666;
-    size_t max_iter = 250;
+    config_t config;
 
-    double eta = 20;
+    struct option long_opts[] = {
+        {"compute-objective",     no_argument, &config.compute_objective, 1},
+        {"no-compute-objective",  no_argument, &config.compute_objective, 0},
+        {"print-intermediate",    no_argument, &config.print_intermediate, 1},
+        {"no-print-intermediate", no_argument, &config.print_intermediate, 0},
+        {"use-hyperplane-lsh",    no_argument, &config.use_hyperplane, 1},
+        {"use-cross-polytope",    no_argument, &config.use_hyperplane, 0},
+        {"random-init",           no_argument, &config.random_init, 1},
+        {"pca-init",              no_argument, &config.random_init, 0},
 
-    bool print_intermediate = false;
+        {"k-lo",                  required_argument, NULL, 'k'},
+        {"k-hi",                  required_argument, NULL, 'K'},
+        {"early-exaggeration",    required_argument, NULL, 'x'},
+        {"late-exaggeration",     required_argument, NULL, 'X'},
+
+        {"num-hash-tables",       required_argument, NULL, 1},
+        {"num-hash-bits",         required_argument, NULL, 2},
+        {"num-probes",            required_argument, NULL, 3},
+
+        {"seed",                  required_argument, NULL, 's'},
+        {"max-iter",              required_argument, NULL, 'i'},
+        {NULL, 0, NULL, 0}
+    };
 
     char c;
-    while((c = getopt(argc, argv, "p:l:b:t:i:n:a:z:s:vhog")) != -1) {
+    while((c = getopt_long(argc, argv, "p:i:n:k:K:x:X:s:h", long_opts, NULL)) != -1) {
         switch(c) {
-            case 'p':
-                p = std::atoll(optarg);
-                std::cerr << "p = " << p << '\n';
-                break;
-            case 'l':
-                l = std::atoll(optarg);
-                std::cerr << "l = " << l << '\n';
-                break;
-            case 'b':
-                b = std::atoll(optarg);
-                std::cerr << "b = " << b << '\n';
-                break;
-            case 't':
-                t = std::atoll(optarg);
-                std::cerr << "t = " << t << '\n';
-                break;
-            case 'i':
-                max_iter = std::atoll(optarg);
-                std::cerr << "# of iterations = " << max_iter << '\n';
-                break;
-            case 'o':
-                compute_objective = true;
-                std::cerr << "computing objective on\n";
-                break;
-            case 'n':
-                eta = std::atof(optarg);
-                std::cerr << "eta = " << eta << '\n';
-                break;
-            case 'v':
-                verbose = true;
-                std::cerr << "verbose mode on\n";
-                break;
-            case 'a':
-                a = std::atoll(optarg);
-                std::cerr << "lower bound for kmeans k a = " << a << '\n';
-                break;
-            case 'z':
-                z = std::atoll(optarg);
-                std::cerr << "upper bound for kmeans k z = " << z << '\n';
-                break;
-            case 's':
-                s = std::atoll(optarg);
-                std::cerr << "seed = " << s << '\n';
-                break;
-            case 'g':
-                print_intermediate = true;
-                std::cerr << "printing intermediate embedding to file\n";
-                break;
+            case 0: /* flag */ break;
+            case 1: config.num_hash_tables = std::atoi(optarg); break;
+            case 2: config.num_hash_bits = std::atoi(optarg); break;
+            case 3: config.num_probes = std::atoi(optarg); break;
+            case 'p': config.perplexity = std::atoi(optarg); break;
+            case 'n': config.eta = std::atof(optarg); break;
+            case 'i': config.max_iter = std::atoll(optarg); break;
+            case 'k': config.kmeans_lo = std::atoi(optarg); break;
+            case 'K': config.kmeans_hi = std::atoi(optarg); break;
+            case 'x': config.early_exaggeration = std::atof(optarg); break;
+            case 'X': config.late_exaggeration = std::atof(optarg); break;
+            case 's': config.seed = std::atoll(optarg); break;
             case 'h':
-            default:
-                std::cerr << "usage: " << argv[0] << " opts FILE\n"
-                          << "where opt in opts is one of the following:\n\n"
-
-                          << "  -p ... perplexity (effective number of neighbors per point). tunable parameter, default = " << P << '\n'
-                          << "  -l ... number of hash tables for FALCONN lsh. tunable parameter, default = " << L << '\n'
-                          << "  -b ... number of hash bits, controls number of buckets per table. automatically set to log2(n) if -1 is passed, default = " << B << '\n'
-                          << "  -t ... number of probes for multi-probe LSH. tunable parameter (inverse relation to L), default = " << T << '\n'
-                          << "  -i ... number of gradient descent iterations\n"
-                          << "  -o ... compute objective in every iteration, default = false\n"
-                          << "  -n ... set eta, default = " << eta << '\n'
-                          << "  -a ... lower bound for k-means k, default = " << A << '\n'
-                          << "  -z ... upper bound for k-means k, default = " << Z << '\n'
-                          << "  -v ... run in verbose mode\n"
-                          << "  -g ... print intermediate embedding to file every iteration (for creating GIFs)\n"
-                          << "  -h ... this message\n\n"
-
-                          << "ktsne is an accelerated approximative version of tsne which uses LSH and kmeans in its computation.\n";
-                std::exit(-1);
+            default: print_usage(argv[0]); std::exit(-1);
         }
     }
 
-    std::mt19937 gen{ s };
+    if(argc == optind) {
+        std::cerr << "no file given!\n";
+        print_usage(argv[0]);
+        std::exit(-1);
+    }
+
+    std::mt19937 gen{ config.seed };
     std::vector<point_t> data = read_data(argv[optind]);
     std::vector<int> labels;
-
-    if(argc > optind + 1) {
-        labels = read_labels(argv[optind + 1]);
-
-        if(labels.size() != data.size()) {
-            std::cerr << "[ERR] label size mismatch. # of labels = " << labels.size() << ", # of data points = " << data.size() << "!\n";
-            std::abort();
-        }
-    }
 
     normalize(data);
     center(data);
@@ -581,32 +562,53 @@ int main(int argc, char** argv) {
     size_t const n = data.size();
     size_t const d = 2;
 
-    if(b == -1) { b = std::max(static_cast<size_t>(16), static_cast<size_t>(std::log2(n))); }
+    if(config.num_hash_bits == -1) { config.num_hash_bits = std::max(static_cast<size_t>(16), static_cast<size_t>(std::log2(n))); }
 
-    Eigen::SparseMatrix<double> P_j_given_i = high_dimensional_affinities(data, p, l, b, t);
+    std::clog << "configuration:\n"
+              << "  perplexity: " << config.perplexity << '\n'
+              << "  eta: " << config.eta << '\n'
+              << "  early exaggeration: " << config.early_exaggeration << '\n'
+              << "  late exaggeration: " << config.late_exaggeration << '\n'
+              << "  iterations: " << config.max_iter << '\n'
+              << "  kmeans k range: [" << config.kmeans_lo << ", " << config.kmeans_hi << "]\n"
+              << "  initialization: " << (config.random_init ? "random" : "PCA") << "\n\n"
+
+              << "  number of hash tables: " << config.num_hash_tables << '\n'
+              << "  number of hash bits: " << config.num_hash_bits << '\n'
+              << "  number of probes (multiprobing): " << config.num_probes << '\n'
+              << "  LSH family: " << (config.use_hyperplane ? "hyperplane" : "cross-polytope") << "\n\n"
+
+              << "  computing objective: " << (config.compute_objective ? "on" : "off") << '\n'
+              << "  printing intermediate embeddings: " << (config.print_intermediate ? "on" : "off") << '\n'
+              << "  seed: " << config.seed << "\n\n";
+
+    Eigen::SparseMatrix<double> P_j_given_i = high_dimensional_affinities(data, config.perplexity, config.num_hash_tables, config.num_hash_bits, config.num_probes, config.use_hyperplane);
     Eigen::SparseMatrix<double> P_ij = Eigen::SparseMatrix<double>(P_j_given_i.transpose()) + P_j_given_i;
     P_ij /= P_ij.sum();
 
     Eigen::MatrixXdr Y(n, d);
     Eigen::MatrixXdr Y_(n, d);
 
-    // initialize_gaussian(Y, 10e-4, gen);
-    initialize_PCA(Y, data);
+    if(config.random_init) {
+        initialize_gaussian(Y, 10e-4, gen);
+    } else {
+        initialize_PCA(Y, data);
+    }
 
     Eigen::MatrixXdr iY    = Eigen::MatrixXdr::Zero(n, d);
     Eigen::MatrixXdr dY    = Eigen::MatrixXdr::Zero(n, d);
     Eigen::MatrixXdr gains = Eigen::MatrixXdr::Ones(n, d);
 
-    std::uniform_int_distribution<size_t> k_dist{ a, z };
+    std::uniform_int_distribution<size_t> k_dist{ config.kmeans_lo, config.kmeans_hi };
 
-    if(compute_objective) { std::cout << "it,obj,normdY,procrustes\n"; }
+    if(config.compute_objective) { std::cout << "it,obj,normdY,procrustes\n"; }
 
-    for(size_t it = 0; it < max_iter; ++it) {
+    for(size_t it = 0; it < config.max_iter; ++it) {
         if(it % 100 == 0) { std::cerr << "it = " << it << '\n'; }
         Eigen::MatrixXdr F_attr = Eigen::MatrixXdr::Zero(n, d);
 
-        double exaggeration = it < 0.25*max_iter ? 12 : 1; // artificially inflate P_ij value for first few iterations
-        exaggeration = it > 0.9*max_iter ? 4 : 1;
+        double exaggeration = it < 0.25*config.max_iter ? 12 : 1; // artificially inflate P_ij value for first few iterations
+        exaggeration = it > 0.9*config.max_iter ? 4 : 1;
 
         for(int k = 0; k < P_ij.outerSize(); ++k) {
             for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
@@ -619,7 +621,7 @@ int main(int argc, char** argv) {
 
         // approximate F_rep by assigning cells using kmeans
         size_t k = k_dist(gen);
-        auto [centroids, n_cell, point_assignments] = do_kmeans(Y, k, 10, gen);
+        auto [centroids, n_cell, point_assignments] = do_kmeans(Y, k, 10, gen, config.compute_objective);
         assert((n_cell.array() > 0.0).all());
 
         Eigen::MatrixXdr sq_dist_cell = compute_sq_dist_binomial(Y, centroids);
@@ -646,13 +648,13 @@ int main(int argc, char** argv) {
 
         Y_ = Y;
 
-        iY = momentum(it)*iY - eta*(gains.cwiseProduct(dY));
+        iY = momentum(it)*iY - config.eta*(gains.cwiseProduct(dY));
         Y += iY;
 
         Eigen::RowVectorXd Y_mean = Y.colwise().mean();
         Y = Y.rowwise() - Y_mean;
 
-        if(compute_objective) { // warning: this is slow!
+        if(config.compute_objective) { // warning: this is slow!
             double kl = 0;
 
             for(int k = 0; k < P_ij.outerSize(); ++k) {
@@ -669,7 +671,7 @@ int main(int argc, char** argv) {
             std::cout << it << "," << kl << "," << dY.norm() << "," << procrustes_error << '\n';
         }
 
-        if(print_intermediate && it % 5 == 0) {
+        if(config.print_intermediate && it % 5 == 0) {
             fs::create_directory("gif");
             std::string outname = std::string{ "gif/" } + fs::path(argv[optind]).stem().string() + "_embedding_it_" + std::to_string(it) + ".csv";
             print_csv(outname, Y, labels);
@@ -677,7 +679,7 @@ int main(int argc, char** argv) {
     }
 
     std::stringstream outname_ss;
-    outname_ss << "ktsne_" << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << eta << "_p_" << p << "_s_" << s << ".csv";
+    outname_ss << "ktsne_" << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << config.eta << "_p_" << config.perplexity << "_s_" << config.seed << ".csv";
 
     print_csv(outname_ss.str(), Y, labels);
 }

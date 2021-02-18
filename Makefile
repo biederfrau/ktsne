@@ -5,4 +5,4 @@ ktsne: ktsne.cpp
 	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG $(OPT_FLAGS) -pthread -o ktsne -DEIGEN_DONT_PARALLELIZE
 
 ktsne_debug: ktsne.cpp
-	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG -Og -pthread -o ktsne_debug -DEIGEN_DONT_PARALLELIZE
+	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG -Og -pthread -o ktsne_debug -DEIGEN_DONT_PARALLELIZE -g
