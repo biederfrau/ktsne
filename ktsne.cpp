@@ -28,7 +28,6 @@
 #include <falconn/lsh_nn_table.h>
 
 using point_t = falconn::DenseVector<double>;
-namespace fs = std::filesystem;
 
 namespace Eigen {
     using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
