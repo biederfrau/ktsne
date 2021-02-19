@@ -1,7 +1,17 @@
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
+
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+  #include <experimental/filesystem>
+  namespace fs = std::experimental::filesystem;
+#else
+  error "Missing the <filesystem> header."
+#endif
+
 #include <iostream>
 #include <limits>
 #include <random>
@@ -452,7 +462,7 @@ struct config_t {
     double early_exaggeration    = 12;
     double late_exaggeration     = 4;
 
-    unsigned int num_hash_tables = 10;
+    unsigned int num_hash_tables = 100;
              int num_hash_bits   = -1;
              int num_probes      = -1;
 
