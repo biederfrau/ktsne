@@ -1,7 +1,17 @@
 #include <algorithm>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
+
+#if __has_include(<filesystem>)
+  #include <filesystem>
+  namespace fs = std::filesystem;
+#elif __has_include(<experimental/filesystem>)
+  #include <experimental/filesystem>
+  namespace fs = std::experimental::filesystem;
+#else
+  error "Missing the <filesystem> header."
+#endif
+
 #include <iostream>
 #include <limits>
 #include <random>
@@ -18,7 +28,6 @@
 #include <falconn/lsh_nn_table.h>
 
 using point_t = falconn::DenseVector<double>;
-namespace fs = std::filesystem;
 
 namespace Eigen {
     using MatrixXdr = Matrix<double, Dynamic, Dynamic, RowMajor>; // this is not FORTRAN
