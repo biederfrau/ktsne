@@ -21,7 +21,7 @@ def run(cmd):
         cmd_ = cmd_.replace(thingy, '')
 
     try:
-        dataset = re.search('../data/(.*)/(.*.csv[^$\n])', cmd).group(2)
+        dataset = re.search('../data/(.*)/(.*.csv)', cmd).group(2)
     except AttributeError:
         print("invalid command, could not parse dataset:", cmd)
         dataset = "???"
@@ -29,7 +29,7 @@ def run(cmd):
     print(cmd.strip(), "took", end - start, "seconds", file=sys.stderr)
     return (cmd_.strip(), dataset.strip(), end - start)
 
-pr = 64
+pr = 128
 pool = ThreadPool(pr)
 
 if len(sys.argv) < 1:

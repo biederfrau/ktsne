@@ -22,6 +22,9 @@ if extname == ".npz":
 elif extname == ".csv":
     df = pd.read_csv(f)
     X = df.to_numpy()
+elif extname == ".emb":
+    df = pd.read_csv(f, header=None, sep=" ")
+    X = df.to_numpy()
 else:
     print("unknown extension:", extname)
     exit(-1)
