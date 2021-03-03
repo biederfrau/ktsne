@@ -19,8 +19,6 @@ from keras.layers import BatchNormalization
 from keras.optimizers import SGD
 from keras.regularizers import l2
 
-import matplotlib.pyplot as plt
-
 import numpy as np
 import pandas as pd
 
@@ -71,7 +69,7 @@ model.add(Dense(10, activation="softmax"))
 opt = SGD(learning_rate=0.001, momentum=0.9)
 model.compile(loss='categorical_crossentropy', optimizer=opt, metrics=['accuracy'])
 
-history = model.fit(X_train, y_train, batch_size=100, epochs=1, validation_data=(X_test, y_test))
+history = model.fit(X_train, y_train, batch_size=100, epochs=5, validation_data=(X_test, y_test))
 _, acc = model.evaluate(X_test, y_test)
 
 print("accuracy =", acc)

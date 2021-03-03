@@ -29,7 +29,7 @@ def run(cmd):
     print(cmd.strip(), "took", end - start, "seconds", file=sys.stderr)
     return (cmd_.strip(), dataset.strip(), end - start)
 
-pr = 128
+pr = 16
 pool = ThreadPool(pr)
 
 if len(sys.argv) < 1:

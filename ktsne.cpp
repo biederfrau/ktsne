@@ -456,17 +456,17 @@ void print_csv(std::string filename, Eigen::MatrixXdr const& Y, std::vector<int>
 }/*}}}*/
 
 struct config_t {
-    double eta                   = 400;
-    unsigned int perplexity      = 15;
+    double eta                   = 200;
+    unsigned int perplexity      = 30;
     double early_exaggeration    = 12;
-    double late_exaggeration     = 4;
+    double late_exaggeration     = 1;
 
     unsigned int num_hash_tables = 100;
              int num_hash_bits   = -1;
              int num_probes      = -1;
 
-    unsigned int kmeans_lo       = 50;
-    unsigned int kmeans_hi       = 50;
+    unsigned int kmeans_lo       = 30;
+    unsigned int kmeans_hi       = 30;
 
     unsigned int seed            = 666;
     size_t max_iter              = 1000;
@@ -619,8 +619,6 @@ int main(int argc, char** argv) {
         double exaggeration = it < 0.25*config.max_iter ? config.early_exaggeration : 1; // artificially inflate P_ij value for first few iterations
         exaggeration = it > 0.9*config.max_iter ? config.late_exaggeration : exaggeration;
 
-	std::cout << "exaggeration: " << exaggeration << '\n';
-
         for(int k = 0; k < P_ij.outerSize(); ++k) {
             for(Eigen::SparseMatrix<double>::InnerIterator it{ P_ij, k }; it; ++it) {
                 int i = it.row(), j = it.col();
@@ -690,7 +688,7 @@ int main(int argc, char** argv) {
     }
 
     std::stringstream outname_ss;
-    outname_ss << "ktsne_" << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << config.eta << "_p_" << config.perplexity << "_x_" << config.early_exaggeration << "_X_" << config.late_exaggeration << "_s_" << config.seed << ".csv";
+    outname_ss << "ktsne_" << fs::path(argv[optind]).stem().string() << "_embedding_eta_" << config.eta << "_p_" << config.perplexity << "_l_" << config.num_hash_tables << (config.use_hyperplane ? "_hyperplane" : "_crosspolytope") << "_k_" << config.kmeans_lo << "_K_" << config.kmeans_hi << (config.random_init ? "_random" : "_pca") << "_x_" << config.early_exaggeration << "_X_" << config.late_exaggeration << "_s_" << config.seed << ".csv";
 
     print_csv(outname_ss.str(), Y, labels);
 }
