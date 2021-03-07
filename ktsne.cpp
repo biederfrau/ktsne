@@ -459,7 +459,7 @@ struct config_t {
     double eta                   = 200;
     unsigned int perplexity      = 30;
     double early_exaggeration    = 12;
-    double late_exaggeration     = 1;
+    double late_exaggeration     = 12;
 
     unsigned int num_hash_tables = 100;
              int num_hash_bits   = -1;
@@ -499,7 +499,7 @@ void print_usage(std::string const& program) {
               << "  --[no-]compute-objective  ... compute objective in every iteration, default = " << (default_config.compute_objective ? "on" : "off") << '\n'
               << "  --[no-]print_intermediate ... print intermediate embedding to file every iteration (for creating GIFs), default = " << (default_config.print_intermediate ? "on" : "off") << "\n\n"
               << "  --use-hyperplane          ... use hyperplane LSH (instead of cross-polytope), default = " << (default_config.use_hyperplane ? "on" : "off") << '\n'
-              << "  --use-cross-polytope      ... use cross-polytope LSH (instead of hyperplane LSH), default = " << (!default_config.use_hyperplane ? "on" : "off") << '\n'
+              << "  --use-cross-polytope      ... use cross-polytope LSH (instead of hyperplane LSH), default = " << (!default_config.use_hyperplane ? "on" : "off") << "\n\n"
 
               << "  -h ... this message\n\n"
 
