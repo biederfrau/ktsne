@@ -75,7 +75,7 @@ _, acc = model.evaluate(X_test, y_test)
 print("accuracy =", acc)
 
 intermediate_layer_model = Model(inputs=model.input, outputs=model.get_layer("embedding").output)
-intermediate_output = intermediate_layer_model.predict(np.concatenate([X_train, X_train]))
+intermediate_output = intermediate_layer_model.predict(np.concatenate([X_train, X_test]))
 
 df = pd.DataFrame(data=intermediate_output, columns=[f"x{i+1}" for i in range(intermediate_output.shape[1])])
 df.to_csv("svhn_d_128.csv", index=None)
