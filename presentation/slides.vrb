@@ -1,0 +1,6 @@
+\frametitle{Experimental Results: Runtime on synthetic data}
+\begin{figure}[h]
+      \centering
+      \includegraphics[width=0.9\textwidth]{runtime_comparison}
+  \caption{Average runtime in seconds on synthetic data}
+  \end{figure}
