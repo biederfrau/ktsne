@@ -492,6 +492,9 @@ void print_usage(std::string const& program) {
               << "  -k, --k-lo ... lower bound for k-means k, default = " << default_config.kmeans_lo << '\n'
               << "  -K, --k-hi ... upper bound for k-means k, default = " << default_config.kmeans_hi << "\n\n"
 
+              << "  --random-init ... initialize using a Gaussian distribution with stddev 10e-4\n"
+              << "  --pca-init    ... initialize with PCA\n\n"
+
               << "  --num-hash-tables ... number of hash tables for FALCONN lsh. tunable parameter, default = " << default_config.num_hash_tables << '\n'
               << "  --num-hash-bits   ... number of hash bits, controls number of buckets per table. automatically set to max(16, log2(n)) if -1 is passed, default = " << default_config.num_hash_bits << '\n'
               << "  --num-probes      ... number of probes for multi-probe LSH. tunable parameter (inverse relation to L), default = " << default_config.num_probes << "\n\n"

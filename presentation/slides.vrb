@@ -1,6 +1,27 @@
-\frametitle{Experimental Results: Runtime on synthetic data}
-\begin{figure}[h]
-      \centering
-      \includegraphics[width=0.9\textwidth]{runtime_comparison}
-  \caption{Average runtime in seconds on synthetic data}
-  \end{figure}
+\frametitle{Some Embeddings}
+\vspace{-.5em}
+    \begin{figure}[h]
+        \centering
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/bhtsne_wiki-topcats}
+            \caption{bhtsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/fitsne_wiki-topcats}
+            \caption{fitsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \par\bigskip
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/umap_wiki-topcats}
+            \caption{umap}
+            \vspace{-1em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/ktsne_wiki-topcats}
+            \caption{ktsne}
+            \vspace{-1em}
+        \end{subfigure}
+        \caption{wiki-topcats}
+    \end{figure}

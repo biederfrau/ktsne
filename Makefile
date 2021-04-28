@@ -6,3 +6,6 @@ ktsne: ktsne.cpp
 
 ktsne_debug: ktsne.cpp
 	g++ ktsne.cpp $(EXT) -std=c++17 -lstdc++fs -DNDEBUG -Og -pthread -o ktsne_debug -DEIGEN_DONT_PARALLELIZE -g
+
+binom_bench:
+	g++ benchmark_eigen_pairwise_dist.cpp -Ifalconn/external/eigen -o binom_bench -std=c++17 -DNDEBUG $(OPT_FLAGS) -DEIGEN_DONT_PARALLELIZE

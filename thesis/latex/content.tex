@@ -1,11 +1,21 @@
 \chapter{Introduction}\label{ch:intro}
 
-Dimensionality reduction is an important tool of data analysis. High dimensional
-data sets may encompass so many dimensions that it becomes difficult to understand
-let alone interpret the data. Dimensionality reduction can help by reducing the dimensions
-such that the data can be drawn or can be used as a means of feature extraction so that
-other methods, e.g. classification algorithms, get better footing and produce better
-results.
+Dimensionality reduction is an important tool of data analysis. High
+dimensional data sets may encompass so many dimensions that it becomes
+difficult to understand let alone interpret the data. A fundamental problem
+in data analysis is the curse of dimensionality---that is, that many methods
+struggle to analyze high-dimensional data because high-dimensional data tends
+to become so sparse that the distance of any point to its nearest neighbor
+converges to the distance to its farthest neighbor.
+
+Dimensionality reduction can help by reducing the dimensions such that the data
+can be drawn or can be used as a means of feature extraction so that other
+methods, e.g.  classification algorithms may produce better results. However,
+the important caveat here is that dimensionality reduction is just as affected
+by the curse of dimensionality as any other method. Nevertheless, some
+dimensionality reduction algorithms are able to extract interesting structure
+from high-dimensional data and are especially useful for visualization as a
+means of data exploration.
 
 Dimensionality reduction has been studied for more than a hundred years with PCA~\cite{pearson_pca}
 being the most prominent and also one of the oldest methods. PCA belongs to the
@@ -19,13 +29,13 @@ Nonlinear dimensionality reduction (NLDR) is used when this is not the case. The
 exist multiple approaches to NLDR, e.g. kernel PCA which is a projective method but
 in a feature space possibly resulting from a nonlinear mapping, but the method we will
 be focusing on is \emph{manifold learning}. The idea of manifold learning is that
-the high dimensional data sets is artificial and most of the data actually lies on
+the high-dimensional data sets is artificial and most of the data actually lies on
 a much lower dimensional manifold plus some noise. Most manifold learning methods
 do not actually learn the manifold itself but try to approximate the geodesic distance
 across the manifold, often by computing a $k$-nearest neighbor graph. As such, a surprising
 amount of manifold learning methods are actually more or less graph embedding algorithms after
 the initial step of computing the graph which differs between methods. Of course, many graph
-embedding methods are not designed to produce ``good-looking'' low dimensional embeddings
+embedding methods are not designed to produce ``good-looking'' low-dimensional embeddings
 and are instead used as means of feature extraction, and deal with different features and problems inherent
 to graphs.
 
@@ -47,13 +57,13 @@ and in this thesis, we introduce another way of doing so and compare ourselves
 against the other methods.
 
 $t$-SNE can be divided into two phases. The initial phase consists of computing
-probabilities in the high dimensional pairs. This involves finding all, or at
+probabilities in the high-dimensional pairs. This involves finding all, or at
 least \emph{some}, distances to all other points or a selected few nearest
-neighbors. The approach to optimize this is to use only \emph{approximate}
+neighbors. The approach to optimize this phase is to use only \emph{approximate}
 nearest neighbors. This can be done by e.g. using trees, as done in Barnes-Hut
-$t$-SNE~\cite{bhtsne}, or in FIt-SNE~\cite{fitsne}, or by any other approximate
-nearest neighbor finding scheme. We choose to use locality sensitive hashing, a
-well established method used in many fields such as duplicate detection (e.g.
+$t$-SNE~\cite{bhtsne}, or in FI$t$-SNE~\cite{fitsne}, or by any other approximate
+nearest neighbor finding scheme. We chose to use locality sensitive hashing, a
+well established method used in many fields such as near duplicate detection (e.g.
 plagiarism detection), clustering, audio similarity detection, and nearest
 neighbor search.
 
@@ -64,7 +74,7 @@ coarsen the data set such that only interactions between much fewer than $n$
 entities need to be computed. In Barnes-Hut $t$-SNE, this is again done with
 the help of trees---each node in the tree that fulfills a quality requirement
 (specified by the user) is summarized. We propose a simpler method of running
-only few iterations of a clustering algorithm to find a rough segmentation of
+only a few iterations of a clustering algorithm to find a rough segmentation of
 points, where every segment can be summarized. This method of approximation can
 be expected to be less precise, but also faster.
 
@@ -74,14 +84,14 @@ deductions, which is useful for experimental data analysis.
 
 \section{Contribution}
 
-We propose an accelerated approximative variant of $t$-SNE. The
+We propose an accelerated approximative variant of $t$-SNE named $kt$-SNE. The
 algorithm utilizes locality sensitive hashing and $k$-Means to achieve
 an overall linear runtime.
 
 Our algorithm achieves embeddings that are within 10\% of the nearest
-neighborhood purity achieved by the other methods. We are faster than
-Barnes-Hut $t$-SNE, but fall significantly behind FIt-SNE and are roughly
-as fast as UMAP. The results of our algorithm tend to be distorted, but
+neighborhood purity achieved by the other methods on most real data. We are
+faster than Barnes-Hut $t$-SNE, but fall significantly behind FI$t$-SNE and are
+roughly as fast as UMAP. The results of our algorithm tend to be distorted, but
 the underlying structure found by the other methods is also present.
 
 \section{Structure of Thesis}
@@ -89,7 +99,7 @@ the underlying structure found by the other methods is also present.
 In Chapter~\ref{ch:prelim} we review the basic definitions and notations
 used in this thesis, as well as introduce locality sensitive hashing, $k$-Means
 and stochastic neighborhood embedding (SNE). Our work builds upon these methods
-and thus an basic unterstanding is required.
+and thus an basic understanding is required.
 
 In Chapter~\ref{ch:related-work} we survey various important methods of
 dimensionality reduction. We review both linear and nonlinear methods, with a
@@ -100,6 +110,10 @@ method and compare it against other selected methods on real and synthetic data
 sets. We discuss our findings and conclude this thesis in chapter~\ref{ch:end}.
 
 \chapter{Preliminaries}\label{ch:prelim}
+
+In this chapter we introduce the core concepts of this thesis. In particular, we introduce
+Locality-Sensitive Hashing, $k$-Means and Stochastic Neighborhood Embedding, as well as
+some basic definitions and notations.
 
 \section{Definitions and Notation}
 
@@ -146,7 +160,7 @@ The generalization to all matrices is the singular value decomposition $A = U \S
 
 A positive semidefinite matrix $M \in \mathbb{R}^{n \times n}$ is positive semidefinite
 if the scalar $z^TMz$ is positive or zero for all non-zero $z \in \mathbb{R}^n$, a constraint
-implying semidefiniteness is written as $M \succeq 0$.
+implying semi-definiteness is written as $M \succeq 0$.
 
 \section{Locality-Sensitive Hashing}
 
@@ -214,7 +228,7 @@ LSH~\cite{lshcomp}, but it should be noted that finding the collision
 probabilities becomes significantly difficult~\cite{pstablelsh} even for the
 previous example of a segmented line.
 
-A notable family of locality sensitive hash functions which were used in our is
+A notable family of locality sensitive hash functions which was used in our work is
 Cross-Polytope LSH. %TODO
 
 An important modification to standard LSH, beside the multitude of different
@@ -261,7 +275,8 @@ $k$-Means is linear in the number of input points, however reaching convergence
 may take many iterations. $k$-Means also has a strong assumption of
 Gaussian-shaped clusters and is unable to find clusters of other shapes.
 Finally, finding a suitable $k$ is not straightforward and is usually done by
-rerunning the algorithm and finding an optimum sum of squared distances.
+rerunning the algorithm and finding an optimum sum of squared distances to closest
+centroid.
 
 \section{Stochastic Neighborhood Embedding}
 
@@ -308,8 +323,7 @@ section of this thesis.
 In this chapter, we survey a few key dimensionality reduction methods,
 including t-SNE, which our work modifies, and other algorithms that compete
 with our proposed algorithm.  We include both linear methods and nonlinear
-methods, though we pay special attention to nonlinear methods. We finish by
-taking a closer look at the variant of LSH which was used in our work.
+methods, though we pay special attention to nonlinear methods.
 
 \section{Linear Methods}
 
@@ -606,7 +620,7 @@ local distances are retained are relaxed.
 
 \subsection{Locally Linear Embedding}
 
-Local Linear Embedding~\cite{intro_lle, lle} (LLE) also proceeds by computing a $k$-nearest
+Locally Linear Embedding~\cite{intro_lle, lle} (LLE) also proceeds by computing a $k$-nearest
 neighbor graph, similar to both MVU and Isomap. The intuition behind LLE is that we can reasonably expect
 a point and its closest neighbors to lie on a locally linear area of the manifold. Every point
 can thus be reconstructed by a linear combination of its neighbors. This leads to the
@@ -701,10 +715,16 @@ variation of SNE that has gained extreme popularity for visualizing high
 dimensional data sets. In its original formulation, $t$-SNE begins by
 converting the high-dimensional distances between points into conditional
 probabilities modeling the the probability that a point $x_i$ would pick point
-$x_j$ as its neighbor. This was later optimized to only include the $k$ nearest
-neighbors of every point, which corresponds to the construction of a
-$k$-nearest neighbor graph as in previously discussed methods. The conditional probabilities are
-given by
+$x_j$ as its neighbor. The neighborhood of a point in both the high-dimensional
+and low-dimensional space is modeled as a probability distribution such that
+the neighborhood in the low-dimensional space such that the difference between
+the two distributions can be minimized.
+
+The neighborhood of every point was later optimized to only include the $k$
+nearest neighbors of every point in the Barnes-Hut version of
+$t$-SNE~\cite{bhtsne}, which corresponds to the construction of a $k$-nearest
+neighbor graph as in previously discussed methods. The conditional
+probabilities are given by
 
 \begin{equation}
     p_{j | i} = \frac{\exp(-||x_i - x_j||^2 / 2\sigma_i^2)}{\sum_{k \neq i} \exp(-||x_i - x_k||^2 / 2\sigma_i^2)},
@@ -760,8 +780,8 @@ is not easy as it is non-convex with potentially many local minima as well as
 computationally intensive with a complexity of $\mathcal{O}(n^2)$. Various
 heuristics such as early exaggeration, where the values $p_{ij}$ are multiplied
 by a constant such as 4 or 12 to force the clusters of the embedding to
-separate are suggested in the paper. The authors also suggest to use a momentum
-term dependent on the iteration.
+separate are suggested in the paper, exist. The authors also suggest to use a
+momentum term dependent on the iteration.
 
 The high computational cost is one of the main drawbacks of $t$-SNE. The
 currently most used implementation of $t$-SNE uses the Barnes-Hut simulation
@@ -775,7 +795,7 @@ sparse by using only the $3 \times \text{perplexity}$ nearest neighbors of
 every point using vantage trees in $\mathcal{O}(n \log n$), which makes the
 complexity of computing the attractive forces for one point constant.
 
-Further optimization attempts include FIt-SNE~\cite{fitsne}, which further
+Further optimization attempts include FI$t$-SNE~\cite{fitsne}, which further
 accelerates $t$-SNE by utilizing the Fourier transform.
 
 Although $t$-SNE is very widely used, it has also been criticized for, on one
@@ -855,8 +875,6 @@ a pendant to $t$-SNE's \emph{early exaggeration}, which enhances the cluster sep
 in the embedding. They also introduce a randomized out-of-core version of PCA for computing
 the principal components of data sets which exceed memory limitations.
 
-\vfill
-
 \subsection{UMAP}
 
 UMAP~\cite{umap} is a departure from previous algorithms insofar that it takes a significantly
@@ -934,16 +952,16 @@ main advantage over $t$-SNE is its runtime.
   \begin{tabular}{lrrrr}
     \toprule
     method     & parametric? & stochastic? & time complexity       & \# parameters \\ \midrule
-    PCA        & yes         & no          & $\mathcal{O}(d^3)$    & 0            \\
+    PCA        & no          & no          & $\mathcal{O}(d^3)$    & 0            \\
     MDS        & no          & no          & $\mathcal{O}(n^3)$    & 0            \\
     LDA        & yes         & no          & $\mathcal{O}(d^3)$    & 0            \\
-    Kernel PCA & yes         & no          & $\mathcal{O}(n^3)$    & 1            \\
+    Kernel PCA & no          & no          & $\mathcal{O}(n^3)$    & 1            \\
     Isomap     & no          & no          & $\mathcal{O}(n^3)$    & 1            \\
     MVU        & no          & no          & $\mathcal{O}(k^3n^3)$ & 1            \\
     Laplacian Eigenmaps & no & no & $\mathcal{O}(p_{nz}^2n^2)$ & 2 \\
     $t$-SNE & no & yes & $\mathcal{O}(n^2)$ & 1 \\
     LargeVis & no & yes & $\mathcal{O}(n)$ & 1 \\
-    FIt-SNE & no & yes & $\mathcal{O}(n)$ & 1 \\
+    FI$t$-SNE & no & yes & $\mathcal{O}(n)$ & 1 \\
     UMAP & no & yes & $\mathcal{O}(n^{1.14})$ & 1 \\
     \bottomrule
   \end{tabular}
@@ -953,14 +971,22 @@ main advantage over $t$-SNE is its runtime.
 
 Table~\ref{tab:summ-rw} shows a summary of the core properties of the methods
 we discussed in this chapter, similar to what is presented
-in~\cite{vandermaaten_review}. Most discussed methods are nonparametric, with
-the exception of PCA, LDA and Kernel PCA. Though kernel PCA is usually
-classified as nonparametric, we argue that the results of Kernel PCA can be
-used to project new high-dimensional data down to the low-dimensional space, as
-detailed in~\cite{pca_parametric}. For MDS, we also consider the Kruskal-Shephard
-scaling, which is nonparametric.
+in~\cite{vandermaaten_review}. Note that we do not include the number of
+dimensions for the low-dimensional space in the parameters. Most discussed
+methods are non-parametric, with the exception LDA, which has strong
+assumptions for the data, namely that all classes distributed according to
+multivariate Gaussian distributions with a shared covariance matrix but
+different means. PCA by itself is non-parametric, as extracting the directions
+of maximum variance using SVD does not impose any assumptions, however if
+hypothesis testing is to be performed to test how many directions are
+significant does require distributional assumptions. However, typical usage of
+PCA usually does not include hypothesis testing.
 
 \chapter{Approximative Linear t-SNE Using k-Means}\label{ch:main}
+
+In this chapter we discuss the various aspects of our proposed algorithm, including
+the initialization method, the approximate nearest neighbors scheme, the usage of
+$k$-Means to segment the low-dimensional space and exaggeration.
 
 \section{Outline}
 
@@ -986,7 +1012,7 @@ summarize using a spatial tree, we run $k$-means on the embedding and use the
 cluster centers as a summary. Running $k$-means is much cheaper than building a
 data structure and should thus yield a significant speedup when computing the
 repulsive forces, and it has recently been shown~\cite{fitsne} that approximate
-nearest neighbors perform just as well as the exact nearest neighbors for the
+nearest neighbors perform similarly well as the exact nearest neighbors for the
 purposes of $t$-SNE, which ties into using LSH. However, we must note that our
 approximations have the potential to be more crude and thus may impose a larger
 approximation error.
@@ -1058,7 +1084,7 @@ of the high-dimensional affinities $p_{ij}$. This allows for further
 optimizations in finding nearest neighbors beyond a complexity
 of $\mathcal{O}(n \log n)$.
 
-FIt-SNE~\cite{fitsne} uses a library called ANNOY~\cite{annoy} which is based on random
+FI$t$-SNE~\cite{fitsne} uses a library called ANNOY~\cite{annoy} which is based on random
 projection trees. LargeVis~\cite{largevis} similarly uses random projection
 trees to partition the high-dimensional space and limit the candidate set of
 (probable) nearest neighbors. UMAP~\cite{umap} uses
@@ -1073,6 +1099,8 @@ trees), i.e. the main reason was simplicity. However, we want to note that any
 ANN algorithm could be used here as long as its complexity is a true
 $\mathcal{O}(n)$ as to preserve the overall runtime of $\mathcal{O}(n)$ of
 our method.
+
+\vfill
 
 \section{Segmentation of Low Dimensional Space}
 
@@ -1106,8 +1134,6 @@ in the version with a $k$ of 5 (Figure~\ref{fig:mnist-too-small}). On the other 
 a $k$ of 30 (Figure~\ref{fig:mnist-ok}) results in the more round cluster shapes that are typical for $t$-SNE, and
 the clusters are better separated.
 
-\vfill
-
 \begin{figure}[!tbp]
   \begin{subfigure}{.45\linewidth}
     \centering
@@ -1138,7 +1164,7 @@ exaggeration and apply it for the first 25\% of gradient descent.
 
 \section{Late Exaggeration}
 
-Late exaggeration was proposed along with FIt-SNE~\cite{fitsne} and has since
+Late exaggeration was proposed along with FI$t$-SNE~\cite{fitsne} and has since
 been widely adopted. The idea is largely congruent with early exaggeration and
 yields embedding with better cluster separation by contracting the clusters.
 Our method also implements early exaggeration. Figure~\ref{fig:exagg-example}
@@ -1265,12 +1291,23 @@ perform better as is adapts to the specifics of the data, our method is easier
 to understand and has an especially straightforward scaling behavior. We will see
 how it performs in the next chapter.
 
-Algorithm~\ref{alg:ktsne} summarizes our method and puts the parts together.
+Algorithm~\ref{alg:ktsne} summarizes our method and puts the parts together,
+and Figure~\ref{fig:flow} shows a higher-level diagram of our method. Refer to Appendix~\ref{ap:a}
+for an overview of our implementation.
+
+An important technical detail of the implementation is that we accelerated the
+computation of the all-pairs squared distance by utilizing the binomial theorem
+yielding the formula $(a - b)^2 = a^2 - 2ab + b^2$.  For $A$ and $B$ in
+$\mathbb{R}^2$ this means component-wise summation of the squared values in $A$
+and $B$, and a matrix multiplication $-2AB^T$---our code utilizes the heavily
+optimized matrix-matrix multiplication routine included in
+Eigen~\cite{eigenweb}, which is significantly faster than a na\"ive
+computation. See Appendix~\ref{ap:b} for a small experiment on this.
 
 \begin{algorithm}[tb]
     \begin{algorithmic}
       \Procedure{ktsne}{$X$, $p$, $k$}
-      \ForAll{points $x_i$} \Comment{Phase 1: Computing high dimensional affinities}
+      \ForAll{points $x_i$} \Comment{Phase 1: Computing high-dimensional affinities}
           \State determine $3 \times \text{perplexity}$ nearest neighbors of $x_i$ using LSH
           \ForAll{neighbor points $x_j$}
           \State determine $\beta$
@@ -1300,20 +1337,38 @@ Algorithm~\ref{alg:ktsne} summarizes our method and puts the parts together.
     \caption{Our proposed algorithm ktsne}
     \label{alg:ktsne}
 \end{algorithm}
+
+\begin{figure}[tbp]
+  \centering
+  \includegraphics[width=\textwidth]{img/pseudo}
+  \caption{Diagram of our method using BPMN notation}
+  \label{fig:flow}
+\end{figure}
+
 \chapter{Experimental Evaluation}\label{ch:eval}
+
+In this chapter we evaluate our previously proposed method. We perform parameter tuning
+for parameters such as the number of cluster centers and exaggeration. We present the
+data sets that we used and discuss the approach to our experiments. Finally, we compare
+our method to to three competing methods.
 
 \section{Data Sets}
 
-We evaluated our proposed algorithm on 17 data sets from different sources such
-as the Stanford Network Analysis Project. We supplemented with graph embeddings. For these, we
-used VERSE~\cite{verse} with a parameterization of $\alpha = 0.85$ and
+We evaluated our proposed algorithm on 17 data sets obtained from various
+sources, e.g.  the Stanford Network Analysis Project or the UCI Machine
+Learning Repository. We supplemented with graph embeddings. For these, we used
+VERSE~\cite{verse} with a parameterization of $\alpha = 0.85$ and
 $n_\text{samples} = 3$.  Table~\ref{tab:datasets} lists all data data sets
 sorted by their size. We reduced all data sets to a dimensionality of 50 using
 PCA prior to running any algorithm, as was done in the experimental evaluations
 of the original $t$-SNE as well as the Barnes-Hut version. % and others?
 
-For the cifar and svhn data sets, we trained a CNN network and obtained the 128
-activations of first dense layer after the convolutional stages.
+For the cifar and svhn data sets, we trained a convolutional neural network and obtained the 128
+activations of the first dense layer after the convolutional stages. The CNN achieved
+an accuracy of over 90\% on held-out test data.
+
+The youtube, com-amazon, com-dblp and hollywood data sets were unlabeled graphs.
+We generated labels using the graph clustering algorithm VieClus~\cite{vieclus}.
 
 \begin{table}[tb]
   \centering
@@ -1321,23 +1376,23 @@ activations of first dense layer after the convolutional stages.
   \begin{tabular}{lrr}
     \toprule
     data set & $n$ & $d$ \\ \midrule
-    emailEuCore & \num{1005} & \num{128} \\
-coil-20 & \num{1440} & \num{16384} \\
-cora & \num{2708} & \num{128} \\
-citeseer & \num{3264} & \num{128} \\
-optdigits & \num{5620} & \num{64} \\
-youtube & \num{13723} & \num{128} \\
-dblp & \num{17278} & \num{128} \\
-pubmed & \num{19717} & \num{128} \\
-cifar & \num{50000} & \num{128} \\
-mnist & \num{70000} & \num{784} \\
-fashion\_mnist & \num{70000} & \num{784} \\
-com-dblp & \num{317079} & \num{128} \\
-com-amazon & \num{334862} & \num{128} \\
-svhn & \num{630420} & \num{128} \\
-hollywood & \num{1069125} & \num{128} \\
-timit & \num{1105455} & \num{273} \\
-wiki-topcats & \num{1791488} & \num{128} \\
+    emailEuCore~\cite{snapnets} & \num{1005} & \num{128} \\
+    coil-20~\cite{coil} & \num{1440} & \num{16384} \\
+    cora~\cite{nr} & \num{2708} & \num{128} \\
+    citeseer~\cite{nr} & \num{3264} & \num{128} \\
+    optdigits~\cite{uci} & \num{5620} & \num{64} \\
+    youtube~\cite{socialcomputingasu} & \num{13723} & \num{128} \\
+    dblp~\cite{gempe} & \num{17278} & \num{128} \\
+    pubmed~\cite{nr} & \num{19717} & \num{128} \\
+    cifar~\cite{tinyimages} & \num{50000} & \num{128} \\
+    mnist~\cite{lecun-mnist} & \num{70000} & \num{784} \\
+    fashion\_mnist~\cite{famnist} & \num{70000} & \num{784} \\
+    com-dblp~\cite{snapnets} & \num{317079} & \num{128} \\
+    com-amazon~\cite{snapnets} & \num{334862} & \num{128} \\
+    svhn~\cite{svhn} & \num{630420} & \num{128} \\
+    hollywood~\cite{nr} & \num{1069125} & \num{128} \\
+    timit~\cite{timit}\footnotemark & \num{1105455} & \num{273} \\
+    wiki-topcats~\cite{snapnets} & \num{1791488} & \num{128} \\
     \bottomrule
   \end{tabular}
   \caption{Data sets used for our evaluation sorted by $n$}
@@ -1363,14 +1418,17 @@ purity. For smaller datasets, the average absolute Pearson coefficient
 
 between the high-dimensional distances and low-dimensional distances in the PCA
 embedding and the final embedding is calculated to quantify how much global structure
-was kept intact. For larger datasets we only sample $n =
-\num{10000}$ points and use their distances to all other points to approximate
-the Pearson coefficient.
+was kept intact.
+% For larger datasets we only sample $n =
+% \num{10000}$ points and use their distances to all other points to approximate
+% the Pearson coefficient.
 
 For the comparison, the perplexity value of all methods is set to the same
 value.  The step size is set to the same value as well for all methods but UMAP,
 which suggests a much lower value of 1, possibly related due to scaling
 internal to UMAP.
+
+\footnotetext{A preprocessed version of the TIMIT data set was graciously provided by Laurens van der Maaten. Many thanks!}
 
 \section{Performance of Approximated Objective}
 
@@ -1448,7 +1506,7 @@ of hash bits we use
   b = \max( 16, \log_2 n ),
 \end{equation*}
 
-where $n$ is the number of data points.
+where $n$ is the number of data points. We do not tune the number of additional probes $t$.
 
 We chose to use FALCONN~\cite{falconn} for our implementation, which supports
 the therein proposed Cross-Polytope hash family as well as the older Hyperplane
@@ -1551,6 +1609,8 @@ very bottom of the recommended value range for the perplexity suggested in the p
 thus we choose to err on the side of caution and pick a perplexity of 30, which will likely
 perform better especially with larger data sets. We set $\eta$ to 200. Coincidentally, these
 are also the default values of the implementation contained in scikit-learn.
+
+\vfill
 
 \subsection{Number of Cluster Centers}
 
@@ -1686,9 +1746,9 @@ by PCA of the input data set (i.e. a reduction to the target dimensionality of
     \begin{tabular}{lrr}
       \toprule
       dataset & pca & random\\ \midrule
-optdigits & \num{0.5579} & \num{0.4909} \\
-mnist & \num{0.4015} & \num{0.3621} \\
-\bottomrule
+      optdigits & \num{0.5579} & \num{0.4909} \\
+      mnist & \num{0.4015} & \num{0.3621} \\
+      \bottomrule
     \end{tabular}
     \caption{Average Pearson correlation coefficient between high and low-dimensional distances}
     \label{tab:init-r}
@@ -1778,23 +1838,25 @@ descent. It may be worthwhile to extend the duration of late exaggeration,
 perhaps even as far as~\cite{arttsne} suggests to all iterations without early
 exaggeration.
 
+\vfill
+
 \section{Comparison Against Other Methods}
 
 We will now compare our method to 3 different related methods: Barnes-Hut $t$-SNE,
-FIt-SNE and UMAP. Note that Barnes-Hut $t$-SNE has a runtime complexity of $\mathcal{O}(n \log n)$
+FI$t$-SNE and UMAP. Note that Barnes-Hut $t$-SNE has a runtime complexity of $\mathcal{O}(n \log n)$
 while the others, including our method, are linear.
 
 Figure~\ref{fig:runtime-comp} shows the resulting curve obtained by running all
 methods on uniformly random data sets, averaged over 5 repeats. Unsurprisingly
 due to its higher runtime complexity, Barnes-Hut $t$-SNE is by far the worst method
-in this regard, followed by our method and UMAP, and finally FIt-SNE, which performs
-the best. Note that in the cases UMAP and FIt-SNE, multithreaded implementations and 4 threads
+in this regard, followed by our method and UMAP, and finally FI$t$-SNE, which performs
+the best. Note that in the cases UMAP and FI$t$-SNE, multithreaded implementations and 4 threads
 were used. Barnes-Hut $t$-SNE and $k$-Means $t$-SNE are strictly singlethreaded.
 
 Our method presents clearly linear and performs particularly well on very small data sets
 due to its low overhead caused by the lack of multithreading. This characteristic is shared
 by Barnes-Hut $t$-SNE. If an efficient way of parallelizing $k$-Means $t$-SNE is found,
-it may be able to compete with FIt-SNE.
+it may be able to compete with FI$t$-SNE.
 
 \begin{figure}[tb]
   \centering
@@ -1805,11 +1867,12 @@ it may be able to compete with FIt-SNE.
 
 Table~\ref{tab:comp} shows the results achieved on our benchmarking data sets, both
 measured by the nearest neighborhood purity and the runtime in seconds. The best result
-per data set is printed in bold. The runtime results are unsurprising given the previous
-figure---our methods excels at smaller data sets and is then superceded by FIt-SNE
-for larger data sets. FIt-SNE performs extraordinarily fast on large data sets and
+per data set is printed in bold. Data sets marked with an asterisk have labels generated
+by graph clustering. The runtime results are unsurprising given the previous
+figure---our methods excels at smaller data sets and is then superseded by FI$t$-SNE
+for larger data sets. FI$t$-SNE performs extraordinarily fast on large data sets and
 also achieves the best result purity-wise on 3 data sets. UMAP overall wins regarding
-the nearest neighborhood purity, followed by FIt-SNE, our method and finally Barnes-Hut
+the nearest neighborhood purity, followed by FI$t$-SNE, our method and finally Barnes-Hut
 $t$-SNE.
 
 Overall, the methods perform similarly w.r.t. the nearest neighborhood purity,
@@ -1821,38 +1884,62 @@ However similar, our method tends to achieve the worst results out of the four
 methods, which is likely due to the more crude approximation our methods
 performs. The fact that our method does not trail behind too far on all but one
 data set is promising as it shows that our method is practical enough to yield
-sensible, though not the best, embeddings.
-
+sensible, though not the best, embeddings. See Appendix~\ref{ap:c} for images of
+selected embeddings.
 
 \subsection{Synthetic data}
 
-To further our comparison, we generated a simple data sets contaning 4 clusters using the data
+To further our comparison, we generated a simple data sets containing 4 clusters using the data
 generation package of ELKI~\cite{elki}. The data is clearly clustered in all 50 dimensions.
+Table~\ref{tab:results-syn2} shows the resulting neighborhood purity. Our
+method performs the worst, though its performance gets better as $n$ increases.
+The bad performance at small $n$ is likely due to the approximation error being
+especially prominent when there are only few points.
 
 \begin{table}
   \centering
   \begin{tabular}{lcccc}
     \toprule
       & bhtsne & fitsne & umap & ktsne\\ \midrule
-      $n = 100$ & \num{0.2424} & \num{0.2424} & \num{0.2424} & \num{0.2424}\\
-      $n = 500$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.5371}\\
-      $n = 1000$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.6018}\\
-      $n = 5000$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9203}\\
-      $n = 10000$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9458}\\
-      $n = 50000$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9761}\\
-      $n = 100000$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9796}\\
+      $n = \num{100}$ & \num{0.2424} & \num{0.2424} & \num{0.2424} & \num{0.2424}\\
+      $n = \num{500}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.5371}\\
+      $n = \num{1000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.6018}\\
+      $n = \num{5000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9203}\\
+      $n = \num{10000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9458}\\
+      $n = \num{50000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9761}\\
+      $n = \num{100000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9796}\\
+      $n = \num{500000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9921}\\
+      $n = \num{1000000}$ & \num{1.0000} & \num{1.0000} & \num{1.0000} & \num{0.9944}\\
     \bottomrule
   \end{tabular}
-  \caption{Nearest neighborhood purity on the second synthetic data set}
+  \caption{Nearest neighborhood purity on the synthetic data set}
   \label{tab:results-syn2}
 \end{table}
 
-Table~\ref{tab:results-syn2} shows the resulting neighborhood purity. Our method performs the worst,
-though its performance gets better as $n$ increases. The bad performance at small $n$s is possibly
-caused by the specified $k$ of 30 being too large to adequately capture the cluster structure in relation
-to $n$.
+Figure~\ref{fig:ktsne-syn2} shows the results of our algorithm for the synthetic data
+set with \num{10000} points, with and without late exaggeration. Late exaggeration results
+in extremely compressed clusters, which is not visually appealing. In both cases our
+method failed to fully separate the clusters, while all other methods did so. This is
+likely due to $k$-Means consistently grouping points from both clusters together, making
+a separation difficult.
+
+\begin{figure}[tbp]
+  \centering
+  \begin{subfigure}{.4\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{img/syn2_late_exagg}
+    \caption{Late exaggeration set to 4}
+  \end{subfigure}
+  \begin{subfigure}{.4\linewidth}
+    \centering
+    \includegraphics[width=\linewidth]{img/syn2_no_late_exagg}
+    \caption{No late exaggeration}
+  \end{subfigure}
+  \caption{Results of our algorithm on the synthetic data set}
+  \label{fig:ktsne-syn2}
+\end{figure}
+
 \begin{table}[tb]
-    \sisetup{detect-weight,mode=text}
   \centering
 \begin{subtable}{\linewidth}
   \centering
@@ -1864,18 +1951,18 @@ coil-20 & \num{0.5906} & \num{0.5641} & \bfseries \num{0.5920} & \num{0.4922} \\
 cora & \num{0.6331} & \num{0.6283} & \num{0.6232} & \bfseries \num{0.6404} \\
 citeseer & \num{0.4217} & \num{0.4262} & \num{0.4280} & \bfseries \num{0.4297} \\
 optdigits & \num{0.9677} & \num{0.9656} & \bfseries \num{0.9736} & \num{0.9585} \\
-youtube & N/A & N/A & N/A & N/A \\
+youtube* & \num{0.7978} & \num{0.8011} & \bfseries \num{0.8124} & \num{0.7946} \\
 dblp & \num{0.3393} & \bfseries \num{0.3401} & \num{0.3370} & \num{0.3100} \\
 pubmed & \bfseries \num{0.7007} & \num{0.6985} & \num{0.6986} & \num{0.6948} \\
 cifar & \num{0.8784} & \num{0.8773} & \bfseries \num{0.8801} & \num{0.8519} \\
 mnist & \num{0.9536} & \bfseries \num{0.9539} & \num{0.9521} & \num{0.9380} \\
 fashion\_mnist & \num{0.7417} & \bfseries \num{0.7426} & \num{0.7034} & \num{0.6889} \\
-com-dblp & N/A & N/A & N/A & N/A \\
-com-amazon & N/A & N/A & N/A & N/A \\
-svhn & \num{0.1236} & \num{0.1238} & \bfseries \num{0.1240} & \num{0.1234} \\
-hollywood & N/A & N/A & N/A & N/A \\
+com-dblp* & \num{0.5303} & \bfseries \num{0.5907} & \num{0.5855} & \num{0.4580} \\
+com-amazon* & \num{0.6982} & \num{0.7449} & \bfseries \num{0.7606} & \num{0.6047} \\
+hollywood* & \num{0.6695} & \num{0.7894} & \bfseries \num{0.8172} & \num{0.7844} \\
 timit & \num{0.3125} & \num{0.3445} & \bfseries \num{0.3641} & \num{0.3481} \\
-wiki-topcats & N/A & N/A & N/A & N/A \\
+svhn & \num{0.1236} & \num{0.1238} & \bfseries \num{0.1240} & \num{0.1234} \\
+wiki-topcats* & \num{0.5060} & \num{0.7477} & \bfseries \num{0.8939} & \num{0.7968} \\
 \bottomrule
   \end{tabular}
   \caption{Average nearest neighborhood purity}
@@ -1930,8 +2017,8 @@ We further evaluated our method thoroughly, with a particular focus on finding p
 yielding a good nearest neighborhood purity based on two data instances. We want to note that
 this proved to be somewhat difficult and presented us with a few surprises that ran
 counter to our expectations. We then put our method to the test and let it compete against
-3 other methods---the Barnes-Hut version, FIt-SNE, and UMAP---on 17 data sets. Though
-our algortihm did not perform better than the other methods, we did not fall behind too
+3 other methods---the Barnes-Hut version, FI$t$-SNE, and UMAP---on 17 data sets. Though
+our algorithm did not perform better than the other methods, we did not fall behind too
 far and were able to compete with UMAP in regards to runtime.
 
 \section{Future Work}
@@ -1949,7 +2036,7 @@ with Eigen. More work needs to be put into this and it will likely be necessary 
 the performance-critical parts of code using SIMD-instructions.
 
 More experiments pertaining to early and late exaggeration are also in order. While we
-focussed on finding a one-size-fits-all exaggeration value in the parameter tuning section,
+focused on finding a one-size-fits-all exaggeration value in the parameter tuning section,
 which turned out to be quite large, it seems that such a value results in distorted embeddings
 particularly for small data sets. It would be interesting to possibly derive a rule of thumb
 for exaggeration based on perhaps the data size and general (expected) structure of

@@ -51,8 +51,9 @@
 \definecolor{Blue}{HTML}{0066a1}
 \definecolor{DarkBlue}{HTML}{00466f}
 
-% \setbeamercolor{alerted text}{fg=Orange}
-% \setbeamercolor{frametitle}{bg=Purple}
+\setbeamercolor{alerted text}{fg=Orange}
+\setbeamercolor{frametitle}{bg=Purple}
+\setbeamercolor{palette primary}{bg=Purple}
 
 \begin{document}
 \maketitle
@@ -65,7 +66,29 @@
 
 \section{Introduction}
 
-\begin{frame}[fragile]{Introduction}
+\begin{frame}[fragile]{Introduction: Dimensionality Reduction}
+    \begin{itemize}
+        \item reducing the dimensionality of a data set while keeping interesting parts
+            \begin{itemize}
+                \item[~] e.g. variance, local neighborhoods
+            \end{itemize}
+        \item reduces computational cost, easier for other methods
+        \item two general kinds:
+            \begin{itemize}
+                \item linear dimensionality reduction (LDR, e.g. PCA)
+                \item non-linear dimensionality reduction (NLDR)
+            \end{itemize}
+        \item manifold learning (NLDR): data is already lying on a
+            low-dimensional, potentially non-linear manifold
+    \end{itemize}
+\end{frame}
+
+\begin{frame}[fragile]{Introduction: Dimensionality Reduction}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=.6\textwidth]{swissroll}
+        \caption{The Swiss Roll data set}
+    \end{figure}
 \end{frame}
 
 \section{$t$-SNE And Its Variants}
@@ -84,9 +107,8 @@
             \[
                 KL(P \, || \, Q) = \sum_i \sum_j p_{ij} \log \frac{p_{ij}}{q_{ij}}
             \]
-        \item intuition: neighborhood encoded as distribution
         \item find low-dimensional points whose neighborhood has similar encoding
-        \item optimized by gradient descent --- difficult, not convex, many local minima
+        \item difficult to optimize: not convex, many local minima, costly
     \end{itemize}
 \end{frame}
 
@@ -117,6 +139,11 @@
                     \item computational complexity $\mathcal{O}(n^2)$
                     \item often misinterpreted
                 \end{itemize}
+            \item approaches:
+                \begin{itemize}
+                    \item approximate gradient
+                    \item use different objective
+                \end{itemize}
         \end{itemize}
     \end{column}
     \begin{column}{0.38\textwidth}
@@ -126,6 +153,14 @@
         \end{figure}
     \end{column}
 \end{columns}
+\end{frame}
+
+\begin{frame}[fragile]{Related Work (Selection)}
+    \begin{itemize}
+        \item Barnes-Hut $t$-SNE
+        \item FI$t$-SNE
+        \item UMAP
+    \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Related Work (Selection)}
@@ -155,10 +190,9 @@
     UMAP
     \begin{itemize}
         \item another common criticism of $t$-SNE is the lack of theoretical foundation
-        \item UMAP borrows from topological analysis and manifold theory to create theoretical foundation
         \item similar to $t$-SNE, but
             \begin{itemize}
-                \item objective is cross entropy of two fuzzy set
+                \item objective is cross entropy of two fuzzy sets
                 \item different kernel in high-dimensional and low-dimensional space
                 \item different normalization
             \end{itemize}
@@ -167,59 +201,33 @@
     \end{itemize}
 \end{frame}
 
-\section{Approximative Linear $t$-SNE}
+\section{Approximative Linear $t$-SNE Using $k$-Means}
+
+\begin{frame}[fragile]{Approximative Linear $t$-SNE}
+    \begin{itemize}
+        \item speed up nearest neighbor search
+            \begin{itemize}
+                \item Locality Sensitive Hashing
+                \item widely used in similarity search
+                \item intuition: maximize probability of similar items colliding
+            \end{itemize}
+        \item speed up computation of gradient
+            \begin{itemize}
+                \item summarize points by using $k$-Means
+                \item clustering need not be good---run for 10 iterations
+                \item cluster centers (centroids) summarize entire cluster
+            \end{itemize}
+    \end{itemize}
+\end{frame}
 
 \subsection{Using Approximate Nearest Neighbors}
 
 \begin{frame}[fragile]{Using Approximative Nearest Neighbors: LSH}
-    \begin{columns}
-    \begin{column}{0.6\textwidth}
-        \begin{itemize}
-            \item ANN scheme of choice: Locality Sensitive Hashing
-            \item LSH family: Cross Polytope
-            \item LSH intuition: similar items should collide into the same hash bucket
-            \item widely used in similarity search
-        \end{itemize}
-    \end{column}
-    \begin{column}{0.38\textwidth}
-        \begin{figure}[h]
-            \centering
-            \includegraphics[width=\textwidth]{srp}
-        \end{figure}
-    \end{column}
-\end{columns}
-\end{frame}
-
-\subsection{Using $k$-Means}
-
-\begin{frame}[fragile]{Using $k$-Means}
-    % \begin{columns}
-    % \begin{column}{0.6\textwidth}
-        % \begin{itemize}
-            % \item summarize points by using $k$-Means to segment low-dimensional space
-            % \item clustering need not be good---run for 10 iterations
-            % \item cluster centers (centroids) are used to summarize
-                % entire cluster
-        % \end{itemize}
-    % \end{column}
-    % \begin{column}{0.38\textwidth}
-        % \begin{figure}[h]
-            % \centering
-            % \includegraphics[width=\textwidth]{voronoi}
-        % \end{figure}
-    % \end{column}
-% \end{columns}
-        % \begin{figure}[h]
-            % \centering
-            % \includegraphics[width=.6\textwidth]{voronoi}
-        % \end{figure}
-        \begin{itemize}
-            \item summarize points by using $k$-Means to segment low-dimensional space
-            \item fixed $k$ (in contrast to data dependent in Barnes-Hut $t$-SNE)
-            \item clustering need not be good---run for 10 iterations
-            \item cluster centers (centroids) are used to summarize
-                entire cluster
-        \end{itemize}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=0.7\textwidth]{srp}
+        \caption{Hyperplane LSH}
+    \end{figure}
 \end{frame}
 
 \begin{frame}[fragile]{Using $k$-Means}
@@ -232,52 +240,80 @@
 
 \begin{frame}[fragile]{Putting it all together: $t$-SNE's gradient}
     \begin{align*}
-        \frac{\partial KL(P||Q)}{\partial y_i} &= \sum_{j \neq i} p_{ij}q_{ij}Z(y_i - y_j) - \sum_{j \neq i} q_{ij}^2Z(y_i - y_j) \\
-        &= F_\text{attr} - F_\text{rep} \\
+        \frac{\partial KL(P \; || \; Q)}{\partial y_i} &= \sum_{j \neq i} p_{ij}q_{ij}Z(y_i - y_j) - \sum_{j \neq i} q_{ij}^2Z(y_i - y_j) \\
+        &= F_\text{attr,$i$} + F_\text{rep,$i$}\\
     \end{align*}
 
     \vspace{-2em}
-    \quad where $Z = \sum_{k \neq l} (1 + || y_k - y_l||^2)^{-1}$
+    % \quad where $Z = \sum_{k \neq l} (1 + || y_k - y_l||^2)^{-1}$ \\
+    % \quad and $q_{ij} = \frac{(1 + ||y_i - y_j||^2)^{-1}}{\sum_{k \neq l} (1 + ||y_k - y_k||^2)^{-1}}$
+
+    \quad where
+    \begin{align*}
+        Z &= \sum_{k \neq l} (1 + || y_k - y_l||^2)^{-1} \\
+        q_{ij} &= \frac{(1 + ||y_i - y_j||^2)^{-1}}{\sum_{k \neq l} (1 + ||y_k - y_l||^2)^{-1}}
+    \end{align*}
 
     \begin{itemize}
         \item speeding up $F_\text{attr}$ is simple
             \begin{itemize}
+                \item \alert{Z cancels out denomiator of $q_{ij}$!}
                 \item use only $k$ nearest neighbors $\rightarrow$ P becomes sparse
-                \item parts of $q_{ij}$ cancel out $Z$
-                \item computation is constant
             \end{itemize}
     \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Putting it all together: $t$-SNE's gradient}
     \begin{align*}
-        F_\text{rep} &= \sum_{j \neq i} -q_{ij}^2Z(y_i - y_j) \\
+        F_\text{rep,$i$} &= \sum_{j \neq i} -q_{ij}^2Z(y_i - y_j)
     \end{align*}
-
-    \vspace{-1em}
-    \quad where $q_{ij} = \frac{(1 + ||y_i - y_j||^2)^{-1}}{\sum_{k \neq l} (1 + ||y_k - y_k||^2)^{-1}}$
 
     \begin{itemize}
         \item more difficult situation
-        \item trick: approximate $F_\text{rep}Z = \sum_{j \neq i} -(q_{ij}Z)^2(y_i - y_j)$
+        \item[$\rightarrow$] trick: approximate $F_\text{rep,$i$}Z = \sum_{j \neq i} -(q_{ij}Z)^2(y_i - y_j)$
+            \bigskip
         \item summarize points by cluster centroids $\bar{y}_c, \; c = 1\ldots k$
+        \item use $\bar{y}_c$ instead of $y_j$
+        \item approximate $Z$ while computing $F_\text{rep,$i$}Z$
     \end{itemize}
 \end{frame}
 
 \begin{frame}[fragile]{Putting it all together: $t$-SNE's gradient}
     \quad Final result
     \begin{align*}
-        F_\text{rep}Z &= \sum_{i=1}^{n} \sum_{c=1}^{k} - \frac{y_i - \bar{y}_c}{1 + ||y_i - \bar{y}_c||^2} \cdot n_c \\
+        \hat{F}_\text{rep,$i$}Z &= \sum_{c=1}^{k} - \frac{y_i - \bar{y}_c}{1 + ||y_i - \bar{y}_c||^2} \cdot n_c \\
         \hat{Z} &= \sum_{i = 1}^{n} \sum_{c=1}^{k} \frac{n_c}{1 + ||y_i - \bar{y}_c||^2}
     \end{align*}
 
     \quad where $n_c$ is the number of points in a cluster.
-
 \end{frame}
 
-\section{Evaluation}
+\begin{frame}[fragile]{Putting it all together: Overview}
+    \begin{figure}[h]
+        \centering
+        \includegraphics[width=\textwidth]{pseudo}
+    \end{figure}
+\end{frame}
 
-\subsection{Experimental Results}
+\section{Experimental Results}
+
+\begin{frame}[fragile]{Experimental Results: Nearest Neighborhood Purity}
+    \begin{itemize}
+        \item performed parameter tuning
+            \begin{itemize}
+                \item k $\rightarrow$ larger better, diminishing returns after $k = 30$
+                \item perplexity and eta data dependent, used values in line with default parameters of other methods
+                \item exaggeration: larger is better, but results in distortion
+            \end{itemize}
+        \item compared with 3 different methods (bhtsne, fitsne, umap) on 17 data sets
+            of 1000 points up to more than one million
+        \item performed PCA down to 50 dimensions in every case
+        \item metric: nearest neighborhood purity with $k = 100$
+            \begin{itemize}
+                \item[~] do the labels of the nearest $k$ neighbors match?
+            \end{itemize}
+    \end{itemize}
+\end{frame}
 
 \begin{frame}[fragile]{Experimental Results: Nearest Neighborhood Purity}
 \fontsize{8pt}{7.9}\selectfont
@@ -317,26 +353,26 @@ wiki-topcats* & 0.5060 & 0.7477 & \bfseries 0.8939 & 0.7968 \\
   \begin{tabular}{lrrrr}
     \toprule
 data & bhtsne & fitsne & umap & ktsne \\ \midrule
-emailEuCore & 6.02 & 36.28 & 22.5 & \bfseries 4.54 \\
-coil-20 & 9.74 & 52.67 & 24.16 & \bfseries 6.9 \\
-cora & 27.26 & 52.1 & 34.54 & \bfseries 12.04 \\
+emailEuCore & 6.02 & 36.28 & 22.50 & \bfseries 4.54 \\
+coil-20 & 9.74 & 52.67 & 24.16 & \bfseries 6.90 \\
+cora & 27.26 & 52.10 & 34.54 & \bfseries 12.04 \\
 citeseer & 44.52 & 56.02 & 39.49 & \bfseries 14.39 \\
 optdigits & 68.22 & 52.12 & 57.48 & \bfseries 27.46 \\
-youtube & 220.16 & \bfseries 50.52 & 101.55 & 66.7 \\
+youtube & 220.16 & \bfseries 50.52 & 101.55 & 66.70 \\
 dblp & 402.66 & \bfseries 53.22 & 131.77 & 86.16 \\
 pubmed & 478.61 & \bfseries 58.06 & 142.53 & 100.36 \\
 cifar & 1507.18 & \bfseries 70.11 & 362.86 & 333.41 \\
-mnist & 2284.13 & \bfseries 80.76 & 512.21 & 466.5 \\
-fashion\_mnist & 2003.8 & \bfseries 80.63 & 534.86 & 515.43 \\
-com-dblp & 25277.6 & \bfseries 345.12 & 2336.02 & 4517.64 \\
+mnist & 2284.13 & \bfseries 80.76 & 512.21 & 466.50 \\
+fashion\_mnist & 2003.80 & \bfseries 80.63 & 534.86 & 515.43 \\
+com-dblp & 25277.60 & \bfseries 345.12 & 2336.02 & 4517.64 \\
 com-amazon & 27031.37 & \bfseries 360.54 & 2486.53 & 5450.24 \\
 svhn & 25749.11 & \bfseries 656.79 & 6191.86 & 10212.89 \\
-hollywood & 123778.42 & \bfseries 964.93 & 16137.21 & 11624.3 \\
+hollywood & 123778.42 & \bfseries 964.93 & 16137.21 & 11624.30 \\
 timit & 190110.22 & \bfseries 1146.17 & 11170.68 & 13598.08 \\
-wiki-topcats & 256839.2 & \bfseries 1421.12 & 17196.37 & 22242.01 \\
+wiki-topcats & 256839.20 & \bfseries 1421.12 & 17196.37 & 22242.01 \\
 \bottomrule
   \end{tabular}
-  \caption{Average runtime in seconds. Best average in bold.}
+  \caption{Average runtime in seconds. Best in bold.}
 \label{tab:comp}
 \end{table}
 \end{frame}
@@ -345,21 +381,168 @@ wiki-topcats & 256839.2 & \bfseries 1421.12 & 17196.37 & 22242.01 \\
   \begin{figure}[h]
       \centering
       \includegraphics[width=0.9\textwidth]{runtime_comparison}
-  \caption{Average runtime in seconds on synthetic data}
+  \caption{Average runtime in seconds on synthetic data (log/log)}
   \end{figure}
 \end{frame}
 
-\subsection{Some Embeddings}
+% \begin{frame}[fragile]{Some Embeddings}
+    % \begin{figure}[h]
+        % \vspace{-.5em}
+        % \centering
+        % \begin{subfigure}{0.3\textwidth}
+            % \includegraphics[width=\textwidth]{emb/bhtsne_mnist}
+            % \caption{bhtsne}
+            % \vspace{-2em}
+        % \end{subfigure}
+        % \begin{subfigure}{0.3\textwidth}
+            % \includegraphics[width=\textwidth]{emb/fitsne_mnist}
+            % \caption{fitsne}
+            % \vspace{-2em}
+        % \end{subfigure}
+        % \par\bigskip
+        % \begin{subfigure}{0.3\textwidth}
+            % \includegraphics[width=\textwidth]{emb/umap_mnist}
+            % \caption{umap}
+            % \vspace{-1em}
+        % \end{subfigure}
+        % \begin{subfigure}{0.3\textwidth}
+            % \includegraphics[width=\textwidth]{emb/ktsne_mnist}
+            % \caption{ktsne}
+            % \vspace{-1em}
+        % \end{subfigure}
+        % \caption{MNIST}
+    % \end{figure}
+% \end{frame}
+
+\begin{frame}[fragile]{Some Embeddings}
+    \vspace{-.5em}
+    \begin{figure}[h]
+        \centering
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/bhtsne_fashion_mnist}
+            \caption{bhtsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/fitsne_fashion_mnist}
+            \caption{fitsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \par\bigskip
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/umap_fashion_mnist}
+            \caption{umap}
+            \vspace{-1em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/ktsne_fashion_mnist}
+            \caption{ktsne}
+            \vspace{-1em}
+        \end{subfigure}
+        \caption{Fashion MNIST}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Some Embeddings}
+    \vspace{-.5em}
+    \begin{figure}[h]
+        \centering
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/bhtsne_com-amazon}
+            \caption{bhtsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/fitsne_com-amazon}
+            \caption{fitsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \par\bigskip
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/umap_com-amazon}
+            \caption{umap}
+            \vspace{-1em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/ktsne_com-amazon}
+            \caption{ktsne}
+            \vspace{-1em}
+        \end{subfigure}
+        \caption{com-amazon}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Some Embeddings}
+    \vspace{-.5em}
+    \begin{figure}[h]
+        \centering
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/bhtsne_hollywood}
+            \caption{bhtsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/fitsne_hollywood}
+            \caption{fitsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \par\bigskip
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/umap_hollywood}
+            \caption{umap}
+            \vspace{-1em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/ktsne_hollywood}
+            \caption{ktsne}
+            \vspace{-1em}
+        \end{subfigure}
+        \caption{hollywood}
+    \end{figure}
+\end{frame}
+
+\begin{frame}[fragile]{Some Embeddings}
+    \vspace{-.5em}
+    \begin{figure}[h]
+        \centering
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/bhtsne_wiki-topcats}
+            \caption{bhtsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/fitsne_wiki-topcats}
+            \caption{fitsne}
+            \vspace{-2em}
+        \end{subfigure}
+        \par\bigskip
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/umap_wiki-topcats}
+            \caption{umap}
+            \vspace{-1em}
+        \end{subfigure}
+        \begin{subfigure}{0.3\textwidth}
+            \includegraphics[width=\textwidth]{emb/ktsne_wiki-topcats}
+            \caption{ktsne}
+            \vspace{-1em}
+        \end{subfigure}
+        \caption{wiki-topcats}
+    \end{figure}
+\end{frame}
 
 \section{Conclusion}
 
-\subsection{Summary}
-
-\subsection{Future Work}
+\begin{frame}{Conclusion}
+    \begin{itemize}
+        \item devised and implemented a variant of $t$-SNE
+        \item evaluated its performance against three competing methods
+        \item results were OK, but did not particularly excel
+        \item future work: fine-grained parallelism in distance computation
+    \end{itemize}
+\end{frame}
 
 \begin{frame}[standout]
-    Thanks for your attention!\\
-    Any questions?
+    Thanks for your attention!
 \end{frame}
 
 \end{document}

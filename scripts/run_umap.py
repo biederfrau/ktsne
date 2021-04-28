@@ -18,6 +18,7 @@ df = pd.read_csv(f)
 n_neighbors = 50
 min_dist = 0.1
 n_components = 2
+learning_rate = 1
 metric = 'euclidean'
 
 X = df.values
@@ -27,7 +28,8 @@ fit = umap.UMAP(
     n_components=n_components,
     metric=metric,
     n_epochs=1000,
-    random_state=seed
+    random_state=seed,
+    learning_rate=learning_rate
 )
 
 Z = fit.fit_transform(X)
