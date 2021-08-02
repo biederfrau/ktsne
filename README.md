@@ -2,6 +2,8 @@
 
 <p align="center">
   <img src="https://github.com/biederfrau/ktsne/blob/master/thesis/latex/img/voronoi_optidigts.png" />
+  <br/>
+  Embedded version of the optdigits data set, with an overlaid Voronoi diagram visualizing a k-Means partition
 </p>
 
 Dimensionality reduction is the transformation of high dimensional
