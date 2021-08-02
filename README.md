@@ -1,5 +1,7 @@
 # Approximative Linear t-SNE using k-Means
 
+![Voronoi diagram](thesis/latex/img/voronoi_optdigits.png)
+
 Dimensionality reduction is the transformation of high dimensional
 data into a lower dimensional space while keeping the interesting parts
 of the data intact. Ideally, the low dimensional so-called embedding
