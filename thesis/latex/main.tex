@@ -1,0 +1,80 @@
+\documentclass[a4paper,
+	11pt,
+	twoside,	 % alternativ twoside, falls doppelseitiger Ausdruck erwünscht ist
+    openright,
+	cleardoublepage=plain,
+    surpressfirstparskip,
+	parskip=half,
+	headings=normal,
+	numbers=noenddot,
+	listof=totoc,
+	bibliography=totoc,
+	appendixprefix,
+	headsepline,
+	footsepline=false,
+	titlepage
+	]{scrbook}
+
+% Bitte beachten: In den folgenden Umgebungen müssen Umlaute in der Form
+% {\"A}, {\"a}, {\"o} usw. eingegeben werden.
+\renewcommand{\title}{Approximative Linear t-SNE Using k-Means}
+\renewcommand{\author}{}
+\newcommand{\email}{}
+
+\input{vorlage/preamble.tex}
+
+\makeatletter
+\@addtoreset{algorithm}{section}% algorithm counter resets every section
+\makeatother
+\renewcommand{\thealgorithm}{\thesection.\arabic{algorithm}}% Algorithm # is <chapter>.<algorithm>
+
+\newcommand*{\fullref}[1]{\hyperref[{#1}]{\cref*{#1},~\nameref*{#1}}}
+\newcommand*{\Fullref}[1]{\hyperref[{#1}]{\Cref*{#1},~\nameref*{#1}}}
+
+\renewcommand*\Call[2]{\textproc{#1}(#2)} % fix for nested calls
+\newcommand{\detto}[1][.4pt]{\xrfill{#1}~\textquotedbl~\xrfill{#1}}
+
+\begin{document}
+\pagenumbering{Roman}
+
+% Titelseite.
+\includepdf{../titelblatt.pdf}
+\thispagestyle{empty} % no II on backside of title page
+
+\frontmatter
+
+\onehalfspacing
+\setcounter{tocdepth}{2}
+
+\chapter*{Abstract}
+
+\input{abstract.tex}
+
+\vfill
+\pagebreak
+\thispagestyle{empty} % no II on backside of title page
+
+\chapter*{Zusammenfassung}
+
+\input{abstract_ger.tex}
+
+\vfill
+\pagebreak
+\thispagestyle{empty} % no II on backside of title page
+
+% Inhaltsverzeichnis
+\tableofcontents
+
+\mainmatter
+
+% Hauptteil der Arbeit
+\input{content.tex}
+
+\bibliographystyle{plain}
+\bibliography{biblio}
+\input{appendix.tex}
+
+% \backmatter
+% \thispagestyle{empty} % no II on backside of title page
+
+\end {document}

@@ -1,0 +1,25 @@
+Dimensionality reduction is the transformation of high-dimensional
+data into a lower dimensional space while keeping the interesting parts
+of the data intact. Ideally, the low-dimensional so-called embedding
+reveals structure that would have been much more difficult to detect
+in the high-dimensional space.
+
+There are many different approaches to dimensionality reduction, and the most
+common taxonomy separates them into linear and non-linear methods. Linear
+methods transform the high-dimensional data solely by applying linear
+transformations, such as PCA, while non-linear methods are essentially
+free to transform the data by any means.
+
+In this thesis, we will be focusing on a non-linear method called $t$-SNE,
+which is a variant of Stochastic Neighborhood Embedding using the Student-$t$
+distribution. $t$-SNE has become popular due to the visual properties of the
+embeddings it produces: well-separated clusters consisting of similar items.
+It is, however, a stochastic method, non-parametric in its original form, possesses
+a difficult to optimize non-convex objective function and also has a prohibitively
+high runtime complexity of $\mathcal{O}(n^2)$.
+
+We implement and evaluate a variant of $t$-SNE named $kt$-SNE utilizing $k$-Means
+and locality sensitive hashing. We achieve an overall runtime complexity of $\mathcal{O}(n)$.
+We thoroughly evaluate our method and put it to the test against three competing
+methods. Our method achieves results that are mostly within 10\% of the best result of the
+competing methods on real data and runs significantly faster than Barnes-Hut $t$-SNE.

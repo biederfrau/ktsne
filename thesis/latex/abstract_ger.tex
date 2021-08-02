@@ -1,0 +1,25 @@
+Unter Dimensionsreduktion versteht man die Transformation von hochdimensionalen
+Daten in einen niedrigdimensionalen Raum, ohne die wesentlichen Merkmale der Daten
+zu verlieren. Idealerweise gibt das niedrigdimensionale sogenannte Embedding seine
+Struktur leichter Preis als sein hochdimensionales Gegenstück.
+
+Es gibt viele unterschiedliche Ansätze zur Dimensionsreduktion. Die häufigste Unterscheidungsmethode
+ist zwischen linearer Dimensionsreduktion und nonlinearer Dimensionsreduktion. Lineare
+Dimensionsreduktionsmethoden transformieren die Daten in einen niedrigdimensionalen Raum
+nur unter Verwendung von linearen Transformationen, wohingehen nonlineare Methoden die
+Daten jegliche Art von Transformation anwenden dürfen.
+
+In dieser Thesis beschäftigen wir uns mit einer nonlinearen Methode namens $t$-SNE, die
+eine Variante von Stochastic Neighbor Embedding (SNE) unter Verwendung der Student-t Verteilung
+darstellt. $t$-SNE ist beliebt aufgrund der visuell ansprechenden Embeddings, die Clusterings
+ähneln, die es produziert. Allerdings ist sie auch stochastisch, nonparametrisch, verfügt
+über eine schwierig zu optimierende Zielfunktion und hat zudem noch eine hohe Laufzeitkomplexität
+von $\mathcal{O}(n^2)$.
+
+Wir implementieren und evaluieren einer variante von $t$-SNE namens $kt$-SNE,
+die den Clusteringalgorithmus $k$-Means und Locality Sensitive Hashing
+verwendet. Wir erreichen eine Laufzeitkomplexität von $\mathcal{O}(n)$. Wir
+evaluieren unsere Methode gründlich und vergleichen sie mit drei vergleichbaren
+Methoden. Unsere Methode erreicht Resultate die zumeist innerhalb von 10\% der
+besten Methode auf realen Daten liegen und läuft signifikant schneller als
+Barnes-Hut $t$-SNE.
