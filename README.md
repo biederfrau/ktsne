@@ -1,6 +1,8 @@
 # Approximative Linear t-SNE using k-Means
 
-![Voronoi diagram](thesis/latex/img/voronoi_optdigits.png)
+<p align="center">
+  <img src="https://github.com/biederfrau/ktsne/blob/master/thesis/latex/img/voronoi_optidigts.png" />
+</p>
 
 Dimensionality reduction is the transformation of high dimensional
 data into a lower dimensional space while keeping the interesting parts
