@@ -1,0 +1,66 @@
+\usepackage{scrpage2}
+\usepackage[table]{xcolor}
+\usepackage[utf8]{inputenc} % Eingabekodierungen
+\usepackage[T1]{fontenc}
+\usepackage[ngerman,english]{babel}
+\usepackage{url}
+\usepackage{setspace}
+\usepackage[export]{adjustbox}% http://ctan.org/pkg/adjustbox
+%\usepackage{graphicx}
+\usepackage{bibgerm}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{lmodern}
+\usepackage{amssymb}
+\usepackage{float}
+\usepackage{mathtools}
+% \usepackage{algorithmicx}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage[bottom]{footmisc}
+\usepackage{pdfpages}
+\usepackage{subcaption}
+\usepackage{ltxtable}
+\usepackage{listings}
+\usepackage[scaled=.8]{beramono}
+\usepackage{lscape}
+\usepackage{longtable}
+\usepackage{xhfill}
+\usepackage[group-separator={,}]{siunitx}
+
+\usepackage{blindtext}
+
+\typearea{12}
+
+\usepackage{xr-hyper}
+\usepackage[
+	breaklinks=true,
+	citecolor=black,
+	linkcolor=black,
+	urlcolor=black,
+	extension=pdf,
+	english]{hyperref}
+\hypersetup{
+	pdfview=FitV,
+	pdfstartview=FitV,
+	bookmarksnumbered=true,
+	pdfauthor={\author},
+	pdftitle={\title}
+}
+\externaldocument[A-]{appendix}
+
+\usepackage{cleveref}
+
+% Fußnoten durchgehend numerieren
+\usepackage{remreset}
+\makeatletter
+\@removefromreset{footnote}{chapter}
+\makeatother
+
+\deffootnote[1em]{1em}{1em}{\textsuperscript{\thefootnotemark}\,}
+
+\tolerance=5000
+
+\clubpenalty10000
+\widowpenalty10000
+\displaywidowpenalty=10000
